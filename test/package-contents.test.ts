@@ -1,0 +1,40 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import test from "node:test";
+
+const repositoryRoot = new URL("..", import.meta.url);
+
+test("published package contains only the intended protected-provider source and artifact", () => {
+  const manifest = JSON.parse(readFileSync(new URL("package.json", repositoryRoot), "utf8")) as {
+    files: string[];
+  };
+  const providerRules = manifest.files.filter((path) => path.replace(/^!/, "").startsWith("provider/"));
+
+  assert.deepEqual(providerRules, [
+    "provider/protected-service.ts",
+    "provider/provider.mjs",
+    "!provider/entry.ts",
+  ]);
+  assert.ok(manifest.files.includes("!scripts/build-protected-provider.mjs"));
+  assert.equal(providerRules.some((path) => path.includes("*")), false);
+  assert.ok(existsSync(new URL("provider/protected-service.ts", repositoryRoot)));
+  assert.ok(existsSync(new URL("provider/provider.mjs", repositoryRoot)));
+  assert.ok(existsSync(new URL("provider/entry.ts", repositoryRoot)));
+  assert.ok(existsSync(new URL("provider/protected-service.test.ts", repositoryRoot)));
+});
+
+test("protected provider is neither an executable nor an ordinary build entry", () => {
+  const manifest = JSON.parse(readFileSync(new URL("package.json", repositoryRoot), "utf8")) as {
+    main: string;
+    bin: Record<string, string>;
+    scripts: Record<string, string>;
+  };
+  const ordinaryBuild = readFileSync(new URL("scripts/build.mjs", repositoryRoot), "utf8");
+
+  assert.equal(manifest.main, "dist/claude-server.mjs");
+  assert.equal(Object.values(manifest.bin).includes("provider/provider.mjs"), false);
+  assert.doesNotMatch(ordinaryBuild, /protected-provider|provider\/provider\.mjs|provider\/entry\.ts/);
+  assert.equal(manifest.scripts.build, "node scripts/build.mjs");
+  assert.equal(manifest.scripts.prepare, "npm run build");
+  assert.equal(manifest.scripts.prepack, "npm run build:protected-provider");
+});
