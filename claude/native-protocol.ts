@@ -8,7 +8,14 @@ import { connect, createServer, type Server, type Socket } from "node:net";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-export const DEFAULT_CLAUDE_SESSION_REGISTRY = join(homedir(), ".claude", "sessions");
+export function claudeNativeRegistryDir(
+  env: NodeJS.ProcessEnv = process.env,
+  home = homedir(),
+): string {
+  return join(env.CLAUDE_CONFIG_DIR || join(home, ".claude"), "sessions");
+}
+
+export const DEFAULT_CLAUDE_SESSION_REGISTRY = claudeNativeRegistryDir();
 export const MAX_NATIVE_FRAME_LINE = 1024 * 1024;
 
 export interface NativeClaudePeer {

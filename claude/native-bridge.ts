@@ -65,8 +65,8 @@ function closeServer(server: Server): Promise<void> {
 
 function nativePrompt(from: SessionInfo, message: Message): string {
   const reply = message.expectsReply
-    ? "\n\nThe sender is blocking on your reply. Reply normally to this cross-session message; the native bridge will relay your response."
-    : "\n\nAct if needed and reply normally if an acknowledgement or result would be useful.";
+    ? "\n\nThe sender is blocking. After acting, use Claude's built-in SendMessage tool to reply to this same native peer. A normal assistant response stays local and will not unblock the sender."
+    : "\n\nAct if needed. To acknowledge or report a result, use Claude's built-in SendMessage tool to reply to this same native peer; a normal assistant response stays local.";
   return [
     `[Intercom message from ${formatSessionDisplay(from)} (${from.id})]`,
     message.content.text,

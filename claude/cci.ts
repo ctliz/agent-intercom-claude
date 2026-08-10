@@ -265,7 +265,7 @@ export function buildTuiAppendSystemPrompt(
     return [
       common,
       "Other local coding-agent sessions can message you through Claude's native cross-session channel. Inbound requests begin with \"[Intercom message from\".",
-      "Treat each as a peer request. If the sender is blocking, do the work and reply normally to that cross-session message; the native bridge preserves ask/reply correlation.",
+      "Treat each as a peer request. After acting, use Claude's built-in SendMessage tool to send your answer or acknowledgement back to the same native peer. A normal assistant response is visible only in this TUI and does not reach the blocking sender.",
       "Do not claim intercom_send or intercom_reply tools are available unless another configured plugin actually provides them.",
     ].join("\n");
   }
@@ -277,6 +277,10 @@ export function buildTuiAppendSystemPrompt(
     "- Otherwise, act if needed and use intercom_send to respond or acknowledge.",
     "Use intercom_team to find your manager and managed coworkers. You also have intercom_list, intercom_whoami, intercom_status, intercom_pending, and intercom_set_summary. Keep intercom replies concise.",
   ].join("\n");
+}
+
+export function nativeClaudeFeatureEnv(transport: ResolvedClaudeIntercomTransport): Record<string, string> {
+  return transport === "native" ? { CLAUDE_CODE_HARBOR_KITE: "1" } : {};
 }
 
 export async function waitForChildExit(child: ChildProcess): Promise<[number | null, NodeJS.Signals | null]> {
@@ -323,7 +327,7 @@ async function runCciTui(options: CciOptions, id: string, name: string): Promise
 
   process.stderr.write(`cci --tui: live intercom session ${name} (${id}), ${resolution.selected} transport (${resolution.reason})\n`);
   process.stderr.write(resolution.selected === "native"
-    ? "Inbound intercom messages use Claude's native cross-session channel; reply normally to the peer message.\n"
+    ? "Inbound intercom messages use Claude's native cross-session channel; answer peers with Claude's built-in SendMessage tool.\n"
     : "Inbound intercom messages appear in this session automatically; reply with the intercom_reply tool.\n");
 
   const child = spawn(options.claudeCommand, args, {
@@ -334,6 +338,7 @@ async function runCciTui(options: CciOptions, id: string, name: string): Promise
       CLAUDE_INTERCOM_NAME: name,
       CLAUDE_INTERCOM_SESSION_ID: id,
       ...(options.model ? { CLAUDE_INTERCOM_MODEL: options.model } : {}),
+      ...nativeClaudeFeatureEnv(resolution.selected),
       ...(resolution.selected === "mcp" ? { CLAUDE_INTERCOM_INBOX: inboxPath } : {}),
     },
   });

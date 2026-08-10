@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 
 export const CLAUDE_INTERCOM_TRANSPORT_ENV = "CLAUDE_INTERCOM_TRANSPORT";
 export const MIN_NATIVE_CLAUDE_VERSION = "2.1.220";
-export const MAX_NATIVE_CLAUDE_VERSION = "2.1.224";
+export const MAX_NATIVE_CLAUDE_VERSION = "2.1.226";
 
 export type ClaudeIntercomTransport = "auto" | "native" | "mcp";
 export type ResolvedClaudeIntercomTransport = Exclude<ClaudeIntercomTransport, "auto">;

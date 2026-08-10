@@ -16,7 +16,7 @@ const compatibleProbe: ClaudeVersionProbe = {
 };
 const incompatibleProbe: ClaudeVersionProbe = {
   command: "claude",
-  version: "2.1.225",
+  version: "2.1.227",
   compatible: false,
   reason: "not verified",
 };
@@ -35,7 +35,8 @@ test("Claude version parsing and compatibility are bounded to verified versions"
   assert.equal(isNativeClaudeVersionCompatible("2.1.219"), false);
   assert.equal(isNativeClaudeVersionCompatible("2.1.220"), true);
   assert.equal(isNativeClaudeVersionCompatible("2.1.224"), true);
-  assert.equal(isNativeClaudeVersionCompatible("2.1.225"), false);
+  assert.equal(isNativeClaudeVersionCompatible("2.1.226"), true);
+  assert.equal(isNativeClaudeVersionCompatible("2.1.227"), false);
 });
 
 test("auto selects native only after a compatible version probe", () => {

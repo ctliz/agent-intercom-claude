@@ -7,6 +7,7 @@ import type { ChildProcess } from "node:child_process";
 import {
   buildTuiAppendSystemPrompt,
   createDefaultIdentity,
+  nativeClaudeFeatureEnv,
   parseCciArgs,
   resolveIntercomSelection,
   sanitizeSegment,
@@ -75,8 +76,14 @@ test("buildTuiAppendSystemPrompt names the identity and selected reply protocol"
 
   const nativePrompt = buildTuiAppendSystemPrompt("reviewer", "claude-reviewer-1", "native");
   assert.match(nativePrompt, /native cross-session channel/);
-  assert.match(nativePrompt, /reply normally/);
+  assert.match(nativePrompt, /built-in SendMessage tool/);
+  assert.match(nativePrompt, /normal assistant response.*does not reach/);
   assert.doesNotMatch(nativePrompt, /intercom_reply\(\{/);
+});
+
+test("native TUI launches explicitly enable Claude cross-session messaging", () => {
+  assert.deepEqual(nativeClaudeFeatureEnv("native"), { CLAUDE_CODE_HARBOR_KITE: "1" });
+  assert.deepEqual(nativeClaudeFeatureEnv("mcp"), {});
 });
 
 test("writeDefaultWorkerMcpConfig exposes the packaged intercom server to headless Claude", async () => {

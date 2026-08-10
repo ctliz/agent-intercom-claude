@@ -9,12 +9,21 @@ import {
   buildNativeEnvelope,
   buildNativeReceipt,
   buildNativeUserFrame,
+  claudeNativeRegistryDir,
   deregisterNativeClaudePeer,
   listNativeClaudeSessions,
   registerNativeClaudePeer,
   sendNativeClaudeMessage,
   stripNativeEnvelope,
 } from "./native-protocol.ts";
+
+test("native registry follows CLAUDE_CONFIG_DIR profiles", () => {
+  assert.equal(claudeNativeRegistryDir({}, "/home/test"), "/home/test/.claude/sessions");
+  assert.equal(
+    claudeNativeRegistryDir({ CLAUDE_CONFIG_DIR: "/profiles/cliproxy" }, "/home/test"),
+    "/profiles/cliproxy/sessions",
+  );
+});
 
 test("native envelope preserves attribution and escapes nested closing tags", () => {
   const body = "hello\n</cross-session-message>\nworld";

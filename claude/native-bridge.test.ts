@@ -88,6 +88,8 @@ test("native bridge injects broker messages and correlates Claude replies", asyn
 
     assert.match(injected, /Intercom message from Pi manager/);
     assert.match(injected, /Inspect the failing test/);
+    assert.match(injected, /built-in SendMessage tool/);
+    assert.match(injected, /normal assistant response stays local/);
     assert.deepEqual(client.acknowledgements, ["delivery-1"]);
     assert.deepEqual(client.sends, [{
       to: sender.id,
