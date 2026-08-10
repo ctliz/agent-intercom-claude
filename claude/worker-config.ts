@@ -10,6 +10,7 @@ import {
   type ClaudePermissionCeiling,
   type ClaudePermissionMode,
 } from "./permission-policy.ts";
+import { parseClaudeIntercomTransport, type ClaudeIntercomTransport } from "./transport.ts";
 
 export interface WorkerAgentConfig {
   id: string;
@@ -26,6 +27,7 @@ export interface WorkerAgentConfig {
   addDirs?: string[];
   mcpConfig?: string;
   claudeArgs?: string[];
+  transport?: ClaudeIntercomTransport;
 }
 
 export interface WorkerConfig {
@@ -137,6 +139,9 @@ function normalizeAgent(raw: unknown, index: number): WorkerAgentConfig {
     addDirs,
     mcpConfig,
     claudeArgs,
+    transport: raw.transport === undefined
+      ? undefined
+      : parseClaudeIntercomTransport(raw.transport, `agents[${index}].transport`),
   };
 }
 
@@ -150,6 +155,7 @@ export function defaultWorkerConfig(env: NodeJS.ProcessEnv = process.env): Worke
       cwd: resolve(env.CLAUDE_INTERCOM_WORKER_CWD?.trim() || processCwd()),
       model: env.CLAUDE_INTERCOM_WORKER_MODEL?.trim() || undefined,
       instructions: env.CLAUDE_INTERCOM_WORKER_INSTRUCTIONS?.trim() || undefined,
+      transport: parseClaudeIntercomTransport(env.CLAUDE_INTERCOM_TRANSPORT, "CLAUDE_INTERCOM_TRANSPORT"),
     }],
   };
 }

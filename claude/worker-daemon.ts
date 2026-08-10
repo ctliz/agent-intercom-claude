@@ -16,6 +16,7 @@ import { loadConfig } from "../config.ts";
 import type { Message, SessionInfo } from "../types.ts";
 import { formatAttachments, formatSessionDisplay } from "./runtime.ts";
 import { copyTextToClipboard, formatContactInstruction } from "./contact.ts";
+import { resolveClaudeIntercomTransport } from "./transport.ts";
 
 const MAX_WAKES_PER_MINUTE = 20;
 
@@ -324,13 +325,20 @@ export class ClaudeWorkerDaemon {
     await spawnBrokerIfNeeded(intercomConfig.brokerCommand, intercomConfig.brokerArgs);
     const state = loadWorkerState(this.config.statePath);
     const claudeCommand = this.config.claudeCommand ?? "claude";
-    this.agents = this.config.agents.map((agent) => new VirtualClaudeAgent(
-      agent,
-      state,
-      this.config.statePath,
-      claudeCommand,
-      this.reportActivity,
-    ));
+    this.agents = this.config.agents.map((agent) => {
+      const transport = resolveClaudeIntercomTransport({
+        requested: agent.transport,
+        claudeCommand,
+      });
+      process.stderr.write(`worker ${agent.id}: ${transport.selected} transport (${transport.reason})\n`);
+      return new VirtualClaudeAgent(
+        { ...agent, transport: transport.selected },
+        state,
+        this.config.statePath,
+        claudeCommand,
+        this.reportActivity,
+      );
+    });
     for (const agent of this.agents) await agent.start();
     process.stderr.write(`claude-intercom worker running ${this.agents.length} agent(s)\n`);
   }

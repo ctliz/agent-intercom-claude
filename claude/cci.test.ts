@@ -3,7 +3,17 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { buildTuiAppendSystemPrompt, createDefaultIdentity, parseCciArgs, resolveIntercomSelection, sanitizeSegment, writeDefaultWorkerMcpConfig } from "./cci.ts";
+import type { ChildProcess } from "node:child_process";
+import {
+  buildTuiAppendSystemPrompt,
+  createDefaultIdentity,
+  nativeClaudeFeatureEnv,
+  parseCciArgs,
+  resolveIntercomSelection,
+  sanitizeSegment,
+  waitForChildExit,
+  writeDefaultWorkerMcpConfig,
+} from "./cci.ts";
 
 test("sanitizeSegment keeps readable safe ids", () => {
   assert.equal(sanitizeSegment("Claude:Repo Main#123"), "claude:repo-main-123");
@@ -52,12 +62,28 @@ test("parseCciArgs tui defaults to false and is enabled by --tui/--live", () => 
   assert.equal(parseCciArgs(["--live"], {}).tui, true);
 });
 
-test("buildTuiAppendSystemPrompt names the identity and the reply protocol", () => {
-  const prompt = buildTuiAppendSystemPrompt("reviewer", "claude-reviewer-1");
-  assert.match(prompt, /reviewer/);
-  assert.match(prompt, /claude-reviewer-1/);
-  assert.match(prompt, /intercom_reply/);
-  assert.match(prompt, /awaiting your reply/);
+test("waitForChildExit handles a process that exited before its listener was attached", async () => {
+  const child = { exitCode: 7, signalCode: null } as ChildProcess;
+  assert.deepEqual(await waitForChildExit(child), [7, null]);
+});
+
+test("buildTuiAppendSystemPrompt names the identity and selected reply protocol", () => {
+  const mcpPrompt = buildTuiAppendSystemPrompt("reviewer", "claude-reviewer-1");
+  assert.match(mcpPrompt, /reviewer/);
+  assert.match(mcpPrompt, /claude-reviewer-1/);
+  assert.match(mcpPrompt, /intercom_reply/);
+  assert.match(mcpPrompt, /awaiting your reply/);
+
+  const nativePrompt = buildTuiAppendSystemPrompt("reviewer", "claude-reviewer-1", "native");
+  assert.match(nativePrompt, /native cross-session channel/);
+  assert.match(nativePrompt, /built-in SendMessage tool/);
+  assert.match(nativePrompt, /normal assistant response.*does not reach/);
+  assert.doesNotMatch(nativePrompt, /intercom_reply\(\{/);
+});
+
+test("native TUI launches explicitly enable Claude cross-session messaging", () => {
+  assert.deepEqual(nativeClaudeFeatureEnv("native"), { CLAUDE_CODE_HARBOR_KITE: "1" });
+  assert.deepEqual(nativeClaudeFeatureEnv("mcp"), {});
 });
 
 test("writeDefaultWorkerMcpConfig exposes the packaged intercom server to headless Claude", async () => {
@@ -143,4 +169,12 @@ test("parseCciArgs falls back to env vars, then defaults", () => {
 test("parseCciArgs defaults claudeCommand to \"claude\"", () => {
   const parsed = parseCciArgs([], {});
   assert.equal(parsed.claudeCommand, "claude");
+});
+
+test("parseCciArgs reads native transport selection from CLI before environment", () => {
+  assert.equal(parseCciArgs([], {}).transport, "auto");
+  assert.equal(parseCciArgs([], { CLAUDE_INTERCOM_TRANSPORT: "mcp" }).transport, "mcp");
+  assert.equal(parseCciArgs(["--transport", "native"], { CLAUDE_INTERCOM_TRANSPORT: "mcp" }).transport, "native");
+  assert.equal(parseCciArgs(["--transport=mcp"], {}).transport, "mcp");
+  assert.throws(() => parseCciArgs(["--transport", "legacy"], {}), /auto, native, or mcp/);
 });

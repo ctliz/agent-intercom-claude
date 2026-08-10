@@ -223,3 +223,17 @@ test("worker configuration validates explicit permission modes", () => {
     assert.throws(() => loadWorkerConfig(path), /must be one of/);
   });
 });
+
+test("worker configuration accepts explicit transport selection without changing old JSON", () => {
+  withConfig({ agents: [{ id: "old-worker", cwd: "/tmp" }] }, (path) => {
+    assert.equal(loadWorkerConfig(path).agents[0]!.transport, undefined);
+  });
+  for (const transport of ["auto", "native", "mcp"] as const) {
+    withConfig({ agents: [{ id: "worker", cwd: "/tmp", transport }] }, (path) => {
+      assert.equal(loadWorkerConfig(path).agents[0]!.transport, transport);
+    });
+  }
+  withConfig({ agents: [{ id: "worker", cwd: "/tmp", transport: "legacy" }] }, (path) => {
+    assert.throws(() => loadWorkerConfig(path), /auto, native, or mcp/);
+  });
+});
