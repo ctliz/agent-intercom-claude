@@ -11,6 +11,14 @@ permission notice are reproduced in [`licenses/MIT-pi-intercom.txt`](licenses/MI
 Those notices must be retained with copies or substantial portions of the
 original MIT-licensed material.
 
+## pi-claude-link
+
+The native Claude Code registry and Unix-socket protocol implementation is
+adapted from [`pi-claude-link`](https://github.com/alonw0/pi-claude-link),
+copyright (c) 2026 alonw0 and made available under the MIT License. Its
+copyright and permission notice are reproduced in
+[`licenses/MIT-pi-claude-link.txt`](licenses/MIT-pi-claude-link.txt).
+
 The current repository, including later modifications and the combined work,
 is distributed under the GNU Affero General Public License v3.0 or later as
 stated in [`LICENSE`](LICENSE). Previously published MIT-licensed versions

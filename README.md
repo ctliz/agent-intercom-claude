@@ -14,7 +14,9 @@
 
 Agent Intercom grew from [Nico Bailon's original `pi-intercom`](https://github.com/nicobailon/pi-intercom). A sincere thank you to Nico and the original contributors for creating the Pi extension and the foundation this cross-harness family builds on.
 
-This repository contains the Claude Code adapter. Version 0.2 uses the shared strict `pi-intercom` protocol v3. Any adapter may start the broker first; incompatible legacy brokers are detected and replaced. Sends are retained in a durable per-session outbox and replayed after reconnect, while receiver acknowledgement distinguishes broker acceptance from durable receipt.
+This repository contains the Claude Code adapter. It uses the shared strict `pi-intercom` protocol v3. Any adapter may start the broker first; incompatible legacy brokers are detected and replaced. Sends are retained in a durable per-session outbox and replayed after reconnect, while receiver acknowledgement distinguishes broker acceptance from durable receipt.
+
+Attached Claude sessions support two local delivery transports. `native` bridges the broker to Claude Code's cross-session Unix socket protocol; `mcp` preserves the plugin/inbox/Monitor path. The default `auto` mode selects native only for Claude Code versions in the verified compatibility window (currently 2.1.220–2.1.224) and otherwise selects MCP. Explicit native selection fails closed outside that window.
 
 When running `cci` or `ccim` in an attached terminal, press **Alt+M** to choose a connected session and send it a message, or **Alt+I** to copy that worker's intercom contact target. The MCP plugin cannot register native Claude Code keyboard shortcuts because Claude Code does not expose plugin keybinding registration; the plugin instead provides `/claude-intercom:intercom` and `/claude-intercom:intercom-id`. Detached worker-daemon mode has no terminal shortcuts.
 
@@ -126,9 +128,7 @@ For a plain, already-active Claude Code session, add the MCP server explicitly:
 claude mcp add claude-intercom -- claude-intercom-mcp
 ```
 
-`cci` does this automatically for each normal headless worker. `ccim` intentionally
-uses Claude's `--safe-mode`, which disables MCP servers along with plugins, hooks,
-and skills.
+With `--transport mcp`, `cci` does this automatically for each normal headless worker. Native headless workers are still woken and replied through the worker daemon's broker connection, but omit the packaged MCP server from the Claude turn. `ccim` intentionally uses Claude's `--safe-mode`, which disables MCP servers along with plugins, hooks, and skills.
 
 Optional identity variables can be attached at registration time:
 
@@ -248,6 +248,7 @@ Flags (all optional; `ccim` accepts the same set):
 | `--mcp-config <json\|file>` | Extra MCP servers for woken turns (e.g. to give the worker intercom tools) |
 | `--state <path>` | Where to persist the worker's session id (default under `~/.pi/agent/intercom/`) |
 | `--claude <cmd>` | Claude Code executable to invoke (default `claude`) |
+| `--transport <auto\|native\|mcp>` | Delivery transport; `auto` uses native only for verified-compatible Claude versions |
 
 ```bash
 cci --cwd /path/to/project --instructions "Reply tersely. Ask before destructive changes."
@@ -274,27 +275,14 @@ you see everything and can type alongside it.
 cci --tui --name worker-a --id worker-a
 ```
 
-Claude Code has no Codex-style app-server, so this uses Claude Code's local
-**Monitor** mechanism (no Anthropic channel relay — works behind a custom
-`ANTHROPIC_BASE_URL`/proxy). Under the hood `cci --tui` launches `claude
---plugin-dir <this repo>` with an intercom identity in the environment; the
-bundled plugin supplies:
+Claude Code has no Codex-style app-server. `cci --tui` therefore resolves one of two local transports before launch:
 
-- the intercom **MCP server** (registers this session's identity + sends replies),
-- a durable **inbox** the server appends inbound messages to, and
-- an auto-armed **monitor** (`monitors/monitors.json`) that tails the inbox and
-  injects each new message into the live session.
+- **Native** bridges the Intercom broker to Claude Code's local cross-session Unix socket. Inbound messages appear as attributed peer messages in the live session; replying normally preserves blocking ask/reply correlation. `auto` uses this only for the verified Claude Code compatibility window (currently 2.1.220–2.1.224). If native attachment fails under `auto`, `cci` restarts once with MCP; explicit `--transport native` fails closed instead.
+- **MCP** is the preserved compatibility path. It launches Claude with the packaged plugin, whose MCP server registers the identity, appends inbound messages to a durable inbox, and auto-arms `monitors/monitors.json` to inject them with Claude Code's local Monitor mechanism. Blocking asks are answered with `intercom_reply`.
 
-When someone `intercom_ask`s the session, the woken turn answers with the
-`intercom_reply` tool (an appended system prompt explains this). `--minimal` is
-ignored here because `--safe-mode` would disable the very MCP server and monitor
-this mode relies on.
+Choose explicitly with `--transport native` or `--transport mcp`, or set `CLAUDE_INTERCOM_TRANSPORT`. Worker JSON entries also accept `"transport": "auto" | "native" | "mcp"`. The Claude executable is probed with `claude --version`; unreadable or out-of-window versions never silently enable native mode.
 
-Requirements/caveats: needs a built checkout (`npm run build`); requires an
-interactive terminal (Monitor is interactive-only); and Monitor must be enabled
-in your Claude Code (it is unavailable when `DISABLE_TELEMETRY` or
-`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set, or on Bedrock/Vertex/Foundry).
-See [docs/wake-mechanisms.md](docs/wake-mechanisms.md).
+`--minimal` is ignored in live TUI mode. The native path requires an interactive Claude process that publishes its local messaging socket. The MCP path additionally needs a built checkout (`npm run build`) and an available Monitor feature; Monitor is unavailable when `DISABLE_TELEMETRY` or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set, or on Bedrock/Vertex/Foundry. Both paths remain local and work behind a custom `ANTHROPIC_BASE_URL`/proxy. See [docs/wake-mechanisms.md](docs/wake-mechanisms.md).
 
 ## Normal And Minimal Workers
 

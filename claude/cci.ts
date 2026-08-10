@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import { createHash } from "node:crypto";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,14 @@ import {
   validateClaudePermissionMode,
   type ClaudePermissionMode,
 } from "./permission-policy.ts";
+import {
+  parseClaudeIntercomTransport,
+  resolveClaudeIntercomTransport,
+  type ClaudeIntercomTransport,
+  type ResolvedClaudeIntercomTransport,
+} from "./transport.ts";
+import { NativeClaudeBrokerBridge } from "./native-bridge.ts";
+import { waitForNativeClaudePeer } from "./native-protocol.ts";
 
 export interface CciOptions {
   id?: string;
@@ -30,6 +38,7 @@ export interface CciOptions {
   minimal: boolean;
   tui: boolean;
   claudeCommand: string;
+  transport: ClaudeIntercomTransport;
 }
 
 interface IdentityInput {
@@ -135,6 +144,9 @@ export function parseCciArgs(argv: string[], env: NodeJS.ProcessEnv = process.en
       case "--claude":
         options.claudeCommand = value ?? readValue(argv, index++, key);
         break;
+      case "--transport":
+        options.transport = parseClaudeIntercomTransport(value ?? readValue(argv, index++, key), key);
+        break;
       case "--yolo":
       case "--dangerously-skip-permissions":
         dangerouslySkipPermissions = true;
@@ -176,6 +188,7 @@ export function parseCciArgs(argv: string[], env: NodeJS.ProcessEnv = process.en
     minimal,
     tui,
     claudeCommand: options.claudeCommand || env.CLAUDE_INTERCOM_CLAUDE_COMMAND || "claude",
+    transport: parseClaudeIntercomTransport(options.transport ?? env.CLAUDE_INTERCOM_TRANSPORT, "CLAUDE_INTERCOM_TRANSPORT"),
   };
 }
 
@@ -242,9 +255,22 @@ export function writeDefaultWorkerMcpConfig(
   return path;
 }
 
-export function buildTuiAppendSystemPrompt(name: string, id: string): string {
+export function buildTuiAppendSystemPrompt(
+  name: string,
+  id: string,
+  transport: ResolvedClaudeIntercomTransport = "mcp",
+): string {
+  const common = `You are a Claude Code session connected to a local intercom as "${name}" (id ${id}).`;
+  if (transport === "native") {
+    return [
+      common,
+      "Other local coding-agent sessions can message you through Claude's native cross-session channel. Inbound requests begin with \"[Intercom message from\".",
+      "Treat each as a peer request. If the sender is blocking, do the work and reply normally to that cross-session message; the native bridge preserves ask/reply correlation.",
+      "Do not claim intercom_send or intercom_reply tools are available unless another configured plugin actually provides them.",
+    ].join("\n");
+  }
   return [
-    `You are a Claude Code session connected to a local intercom as "${name}" (id ${id}).`,
+    common,
     "Other local coding-agent sessions can message you. Inbound messages are delivered automatically as monitor events that begin with \"Intercom message from\".",
     "When such an event arrives, treat it as a request from that peer:",
     "- If it is marked \"[asking — awaiting your reply]\", the sender is BLOCKING on your answer. Do the work if appropriate, then answer with the intercom_reply tool: intercom_reply({ message: \"...\" }).",
@@ -253,27 +279,41 @@ export function buildTuiAppendSystemPrompt(name: string, id: string): string {
   ].join("\n");
 }
 
-// Live TUI mode: run an interactive `claude` that owns the intercom identity
-// (via the plugin's MCP server) and auto-arms the inbox monitor (via the
-// plugin's monitors.json), so inbound messages are injected into the live
-// session — the coi-style "sit in it and get woken" experience. Uses the local
-// Monitor mechanism (no Anthropic channel relay), so it works behind cliproxy.
+export async function waitForChildExit(child: ChildProcess): Promise<[number | null, NodeJS.Signals | null]> {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return [child.exitCode, child.signalCode];
+  }
+  return once(child, "exit") as Promise<[number | null, NodeJS.Signals | null]>;
+}
+
+// Live TUI mode: run an interactive `claude` and attach either the native
+// socket bridge or the preserved plugin/inbox/Monitor transport, giving the
+// coi-style "sit in it and get woken" experience without an Anthropic relay.
 async function runCciTui(options: CciOptions, id: string, name: string): Promise<number> {
+  const resolution = resolveClaudeIntercomTransport({
+    requested: options.transport,
+    claudeCommand: options.claudeCommand,
+  });
   const root = repoRoot();
   const serverPath = join(root, "dist", "claude-server.mjs");
   const monitorPath = join(root, "dist", "inbox-monitor.mjs");
-  if (!existsSync(serverPath) || !existsSync(monitorPath)) {
-    process.stderr.write(`cci --tui requires a build. Run \`npm run build\` in ${root} first.\n`);
+  if (resolution.selected === "mcp" && (!existsSync(serverPath) || !existsSync(monitorPath))) {
+    process.stderr.write(`cci --tui with MCP transport requires a build. Run \`npm run build\` in ${root} first.\n`);
     return 1;
   }
   if (options.minimal) {
-    process.stderr.write("cci --tui ignores --minimal: --safe-mode would disable the intercom MCP server and the inbox monitor.\n");
+    process.stderr.write(resolution.selected === "mcp"
+      ? "cci --tui ignores --minimal: --safe-mode would disable the intercom MCP server and inbox monitor.\n"
+      : "cci --tui ignores --minimal: live native mode runs an ordinary interactive Claude session.\n");
   }
 
   const inboxPath = defaultInboxPath(id);
-  rmSync(inboxPath, { force: true }); // fresh session: only surface messages that arrive from now on
+  if (resolution.selected === "mcp") {
+    rmSync(inboxPath, { force: true }); // fresh session: only surface messages that arrive from now on
+  }
 
-  const args: string[] = ["--plugin-dir", root, "--append-system-prompt", buildTuiAppendSystemPrompt(name, id)];
+  const args: string[] = ["--append-system-prompt", buildTuiAppendSystemPrompt(name, id, resolution.selected)];
+  if (resolution.selected === "mcp") args.unshift("--plugin-dir", root);
   const permission = resolveClaudePermissionPolicy(options);
   if (options.model) args.push("--model", options.model);
   if (options.effort) args.push("--effort", options.effort);
@@ -281,8 +321,10 @@ async function runCciTui(options: CciOptions, id: string, name: string): Promise
   else if (permission.permissionMode) args.push("--permission-mode", permission.permissionMode);
   for (const dir of options.addDirs) args.push("--add-dir", dir);
 
-  process.stderr.write(`cci --tui: live intercom session ${name} (${id})\n`);
-  process.stderr.write("Inbound intercom messages appear in this session automatically; reply with the intercom_reply tool.\n");
+  process.stderr.write(`cci --tui: live intercom session ${name} (${id}), ${resolution.selected} transport (${resolution.reason})\n`);
+  process.stderr.write(resolution.selected === "native"
+    ? "Inbound intercom messages use Claude's native cross-session channel; reply normally to the peer message.\n"
+    : "Inbound intercom messages appear in this session automatically; reply with the intercom_reply tool.\n");
 
   const child = spawn(options.claudeCommand, args, {
     cwd: options.cwd,
@@ -292,11 +334,28 @@ async function runCciTui(options: CciOptions, id: string, name: string): Promise
       CLAUDE_INTERCOM_NAME: name,
       CLAUDE_INTERCOM_SESSION_ID: id,
       ...(options.model ? { CLAUDE_INTERCOM_MODEL: options.model } : {}),
-      CLAUDE_INTERCOM_INBOX: inboxPath,
+      ...(resolution.selected === "mcp" ? { CLAUDE_INTERCOM_INBOX: inboxPath } : {}),
     },
   });
-  const [code, signal] = (await once(child, "exit")) as [number | null, NodeJS.Signals | null];
-  rmSync(inboxPath, { force: true });
+  let bridge: NativeClaudeBrokerBridge | undefined;
+  if (resolution.selected === "native") {
+    try {
+      if (!child.pid) throw new Error("Claude started without a process id; native transport cannot attach");
+      const peer = await waitForNativeClaudePeer(child.pid);
+      bridge = new NativeClaudeBrokerBridge({ id, name, cwd: options.cwd, model: options.model });
+      await bridge.start(peer.socketPath);
+    } catch (error) {
+      child.kill("SIGTERM");
+      await waitForChildExit(child).catch(() => undefined);
+      await bridge?.stop();
+      if (resolution.requested !== "auto") throw error;
+      process.stderr.write(`Native Claude transport did not attach (${error instanceof Error ? error.message : String(error)}); falling back to MCP.\n`);
+      return runCciTui({ ...options, transport: "mcp" }, id, name);
+    }
+  }
+  const [code, signal] = await waitForChildExit(child);
+  await bridge?.stop();
+  if (resolution.selected === "mcp") rmSync(inboxPath, { force: true });
   if (typeof code === "number") return code;
   return signal === "SIGINT" ? 130 : 1;
 }
@@ -311,7 +370,13 @@ export async function runCci(options: CciOptions): Promise<number> {
   }
 
   const statePath = options.statePath ?? DEFAULT_WORKER_STATE_PATH;
-  const mcpConfig = options.mcpConfig ?? (options.minimal ? undefined : writeDefaultWorkerMcpConfig());
+  const resolution = resolveClaudeIntercomTransport({
+    requested: options.transport,
+    claudeCommand: options.claudeCommand,
+  });
+  const mcpConfig = options.mcpConfig ?? (
+    resolution.selected === "mcp" && !options.minimal ? writeDefaultWorkerMcpConfig() : undefined
+  );
 
   // Minimal mode runs each woken turn with Claude Code's --safe-mode, which
   // disables CLAUDE.md, skills, plugins, hooks, MCP servers, and *custom* agent
@@ -335,6 +400,7 @@ export async function runCci(options: CciOptions): Promise<number> {
     addDirs: options.addDirs.length ? options.addDirs : undefined,
     mcpConfig,
     claudeArgs: claudeArgs.length ? claudeArgs : undefined,
+    transport: resolution.selected,
   };
 
   const config: WorkerConfig = {
@@ -343,7 +409,7 @@ export async function runCci(options: CciOptions): Promise<number> {
     agents: [agent],
   };
 
-  process.stderr.write(`cci intercom worker: ${name} (${id})\n`);
+  process.stderr.write(`cci intercom worker: ${name} (${id}), ${resolution.selected} transport (${resolution.reason})\n`);
   process.stderr.write(`Resume this worker's Claude session anytime with: claude --resume <session-id> (see ${statePath} once a turn has run)\n`);
   if (options.dangerouslySkipPermissions) {
     process.stderr.write("Running with explicitly requested --dangerously-skip-permissions (yolo).\n");
