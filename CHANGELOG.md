@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1-tmuxdeck.1 - 2026-08-12
+
+- Include `monitors/monitors.json` in the npm package so `cci --tui` can inject inbound Intercom messages into the live Claude Code session.
+- This maintenance build is pinned for TmuxDeck's managed Claude adapter while the upstream fix is reviewed in #7.
+
 ## 0.10.0 - 2026-07-16
 
 - Add `intercom_team` so owned Claude coworkers can find their current manager and live siblings without a global peer search.
