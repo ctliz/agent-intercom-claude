@@ -38,3 +38,48 @@ test("protected provider is neither an executable nor an ordinary build entry", 
   assert.equal(manifest.scripts.prepare, "npm run build");
   assert.equal(manifest.scripts.prepack, "npm run build:protected-provider");
 });
+
+test("package manifest and plugin definition maintain consistent MCP, monitors, skills, and commands paths", () => {
+  const manifest = JSON.parse(readFileSync(new URL("package.json", repositoryRoot), "utf8")) as {
+    files: string[];
+  };
+
+  assert.ok(manifest.files.includes(".claude-plugin/**/*"));
+  assert.ok(manifest.files.includes(".mcp.json"));
+  assert.ok(manifest.files.includes("monitors/**/*"));
+  assert.ok(manifest.files.includes("skills/**/*"));
+  assert.ok(manifest.files.includes("commands/**/*"));
+  assert.ok(manifest.files.includes("dist/**/*"));
+
+  const plugin = JSON.parse(readFileSync(new URL(".claude-plugin/plugin.json", repositoryRoot), "utf8")) as {
+    name: string;
+    skills: string;
+    commands: string;
+    monitors: string;
+    mcpServers: string;
+  };
+
+  assert.equal(plugin.name, "claude-intercom");
+  assert.ok(existsSync(new URL(plugin.monitors, repositoryRoot)));
+  assert.ok(existsSync(new URL(plugin.mcpServers, repositoryRoot)));
+  assert.ok(existsSync(new URL(plugin.skills, repositoryRoot)));
+  assert.ok(existsSync(new URL(plugin.commands, repositoryRoot)));
+
+  const monitors = JSON.parse(readFileSync(new URL(plugin.monitors, repositoryRoot), "utf8")) as Array<{
+    name: string;
+    command: string;
+  }>;
+  const inboxMonitor = monitors.find((m) => m.name === "intercom-inbox");
+  assert.ok(inboxMonitor, "monitors.json must define intercom-inbox");
+  assert.match(inboxMonitor.command, /dist\/inbox-monitor\.mjs/);
+
+  const mcpConfig = JSON.parse(readFileSync(new URL(plugin.mcpServers, repositoryRoot), "utf8")) as {
+    mcpServers: Record<string, { command: string; args: string[] }>;
+  };
+  assert.ok(mcpConfig.mcpServers["claude-intercom"], ".mcp.json must define claude-intercom");
+  assert.match(mcpConfig.mcpServers["claude-intercom"].args[0], /dist\/claude-server\.mjs/);
+
+  assert.ok(existsSync(new URL("skills/claude-intercom/SKILL.md", repositoryRoot)));
+  assert.ok(existsSync(new URL("commands/intercom.md", repositoryRoot)));
+  assert.ok(existsSync(new URL("commands/intercom-id.md", repositoryRoot)));
+});

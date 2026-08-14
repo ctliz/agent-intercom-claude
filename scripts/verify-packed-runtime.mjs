@@ -80,6 +80,48 @@ try {
     throw new Error("Packed adapter contains a private Core module tree");
   }
 
+  // 1. Assert Claude Plugin manifest exists and is valid
+  const pluginEntry = entries.get("package/.claude-plugin/plugin.json");
+  if (!pluginEntry) throw new Error("Packed adapter is missing .claude-plugin/plugin.json");
+  const plugin = JSON.parse(pluginEntry.toString("utf8"));
+  if (plugin.name !== "claude-intercom") throw new Error(`Unexpected plugin name: ${plugin.name}`);
+
+  // 2. Assert Plugin -> MCP configuration exists and points to real dist bundle
+  if (typeof plugin.mcpServers !== "string") throw new Error("plugin.json missing mcpServers declaration");
+  const mcpRelPath = plugin.mcpServers.replace(/^\.\//, "");
+  const mcpEntry = entries.get(`package/${mcpRelPath}`);
+  if (!mcpEntry) throw new Error(`Packed adapter missing plugin mcpServers file: ${mcpRelPath}`);
+  const mcpConfig = JSON.parse(mcpEntry.toString("utf8"));
+  const claudeServerArg = mcpConfig.mcpServers?.["claude-intercom"]?.args?.[0];
+  if (!claudeServerArg || !claudeServerArg.includes("/dist/claude-server.mjs")) {
+    throw new Error(`MCP config does not reference dist/claude-server.mjs: ${claudeServerArg}`);
+  }
+
+  // 3. Assert Plugin -> Monitors configuration exists and points to real dist bundle
+  if (typeof plugin.monitors !== "string") throw new Error("plugin.json missing monitors declaration");
+  const monitorsRelPath = plugin.monitors.replace(/^\.\//, "");
+  const monitorsEntry = entries.get(`package/${monitorsRelPath}`);
+  if (!monitorsEntry) throw new Error(`Packed adapter missing plugin monitors file: ${monitorsRelPath}`);
+  const monitorsConfig = JSON.parse(monitorsEntry.toString("utf8"));
+  if (!Array.isArray(monitorsConfig) || monitorsConfig.length === 0) {
+    throw new Error("monitors.json is empty or not an array");
+  }
+  const inboxMonitor = monitorsConfig.find((m) => m.name === "intercom-inbox");
+  if (!inboxMonitor || !inboxMonitor.command?.includes("/dist/inbox-monitor.mjs")) {
+    throw new Error(`monitors.json missing intercom-inbox command referencing dist/inbox-monitor.mjs: ${JSON.stringify(inboxMonitor)}`);
+  }
+
+  // 4. Assert Plugin -> Skills & Commands exist in packed archive
+  if (typeof plugin.skills !== "string") throw new Error("plugin.json missing skills declaration");
+  const skillEntry = entries.get("package/skills/claude-intercom/SKILL.md");
+  if (!skillEntry) throw new Error("Packed adapter missing skills/claude-intercom/SKILL.md");
+
+  if (typeof plugin.commands !== "string") throw new Error("plugin.json missing commands declaration");
+  const commandEntry1 = entries.get("package/commands/intercom.md");
+  const commandEntry2 = entries.get("package/commands/intercom-id.md");
+  if (!commandEntry1 || !commandEntry2) throw new Error("Packed adapter missing commands markdown files");
+
+  // 5. Assert all dist bundles exist and adhere to Core externalization
   for (const bundle of bundles) {
     const entry = entries.get(`package/dist/${bundle}`);
     if (!entry) throw new Error(`Packed adapter is missing dist/${bundle}`);
@@ -91,7 +133,8 @@ try {
       throw new Error(`Packed dist/${bundle} does not retain its Core peer import`);
     }
   }
-  console.log(`Verified ${bundles.length} packed bundles use required Core peer 0.1.0`);
+
+  console.log(`Verified complete plugin+MCP+monitors+dist chain and ${bundles.length} packed bundles using Core peer 0.1.0`);
 } finally {
   if (temp) rmSync(temp, { recursive: true, force: true });
 }

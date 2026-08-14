@@ -92,14 +92,20 @@ at any time with `claude --resume <session-id>`.
 
 ## Install
 
-Install the package so the command-line entry points are on `PATH`:
+Install via npm using the `connect` dist-tag:
 
 ```bash
-git clone --depth 1 --branch v0.12.0-connect.2 https://github.com/ctliz/agent-intercom-claude.git
-cd agent-intercom-claude && npm ci && npm link
+npm install -g @ctliz/agent-intercom-claude@connect
+# or by exact prerelease version
+npm install -g @ctliz/agent-intercom-claude@0.12.0-connect.3
 ```
 
-> The public npm package `@ctliz/agent-intercom-claude` is **not yet published**. GitHub at the exact connect tag is the only supported install path for this release.
+Or install from GitHub source at the exact tag so the command-line entry points are on `PATH`:
+
+```bash
+git clone --depth 1 --branch v0.12.0-connect.3 https://github.com/ctliz/agent-intercom-claude.git
+cd agent-intercom-claude && npm ci && npm link
+```
 
 This provides:
 
@@ -482,21 +488,19 @@ their original notices. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and
 published under MIT remain available under their original terms. See
 [LICENSE_TRANSITION.md](LICENSE_TRANSITION.md) for the exact commit and tag boundary.
 
-## Upgrading from `connect.1` to `connect.2`
+## Upgrading to the @ctliz namespace
 
-`connect.2` renames the package namespace from `@dataforxyz/*` to `@ctliz/*`. The two namespaces are different packages to npm. Pi Git package installations deduplicate by repository URL without ref, but running agent sessions continue to execute legacy code in memory, and npm or global installs along with binary links can coexist and conflict. Operators must stop active sessions, clean active install surfaces, and follow remove-before-install — side-by-side installation is not supported.
+The v4 release line renames the package namespace from `@dataforxyz/*` to `@ctliz/*`. The two namespaces are different packages to npm. For Claude Code, `0.12.0-connect.3` packages `monitors/monitors.json` alongside the plugin; other installed adapters update to their compatible v4 release (e.g. `connect.2`). Pi Git package installations deduplicate by repository URL without ref, but running agent sessions continue to execute legacy code in memory, and npm or global installs along with binary links can coexist and conflict. Operators must stop active sessions, clean active install surfaces, and follow remove-before-install — side-by-side installation is not supported.
 
 1. Back up the exact specs, lock files, and settings of every installed component.
 2. Stop or close the installed broker-capable adapters.
 3. Remove the old `@dataforxyz/*` specs, packages, and binary links that are actually installed.
 4. Assert the old identity is gone from the **active install surfaces of the current OS user**: Pi settings and extension specs, resolved managed install roots, actual `node_modules` installations, and conflicting binary links that the current `PATH` would resolve. Do not scan or delete unrelated source checkouts, historical documentation, or other users' files — a `@dataforxyz/*` string in an unrelated development clone is not an installation.
-5. Install the `@ctliz/*` `connect.2` exact tags for the components you actually use (v0.12.0-connect.2).
+5. Install the `@ctliz/*` packages for the components you actually use (e.g. `npm install -g @ctliz/agent-intercom-claude@connect` / `v0.12.0-connect.3`, and companion `connect.2` releases for other harnesses).
 6. Reload or restart, then verify exactly one broker is running.
 
-**Classification rule.** Migration-aware `connect.2` setup and update tooling must classify an old-namespace-only install surface as `MIGRATION_REQUIRED`, and the simultaneous presence of both namespaces as a duplicate/dual-load hard error that refuses setup, update, and further installation. This tooling does not exist for every platform and adapter combination; where it is not available, apply the same two rules manually against the surfaces in step 4. Do not assume every adapter emits this code automatically.
+**Classification rule.** Migration-aware setup and update tooling classifies an old-namespace-only install surface as `MIGRATION_REQUIRED`, and the simultaneous presence of both namespaces as a duplicate/dual-load hard error that refuses setup, update, and further installation. This tooling does not exist for every platform and adapter combination; where it is not available, apply the same two rules manually against the surfaces in step 4. Do not assume every adapter emits this code automatically.
 
 **Rollback** reverses this and covers only the components that were installed on this machine before the upgrade: remove the `@ctliz/*` packages, then restore the backed-up exact `@dataforxyz/*` specs and locks. Roll Orchestrator back only if it was installed to begin with.
 
 The `connect.1` tags, source commits, and published release assets are immutable and are not modified by this migration. Release notes may carry an explicit erratum, which corrects the description only and never moves a tag or replaces an asset.
-
-These packages are not published on the npm registry yet; install from the GitHub tags shown above.

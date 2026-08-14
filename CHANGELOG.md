@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0-connect.3 - 2026-08-14
+
+- Fix package bundling by adding `monitors/**/*` (`monitors/monitors.json`) to `package.json` `files`, ensuring Claude Code plugin monitor configurations resolve properly at runtime when installed from the packaged npm artifact.
+- Add packed runtime verifier and test assertions to validate the complete plugin + MCP + monitors + skills + commands + dist execution chain and path consistency across packed releases.
+- Clarify npm registry availability under dist-tag `connect` (`@ctliz/agent-intercom-claude@connect` / `@ctliz/agent-intercom-claude@0.12.0-connect.3`) while preserving exact GitHub tag and remove-before-install instructions.
+
 ## 0.12.0-connect.1 - 2026-08-14
 
 - Introduce Intercom protocol v4 candidate with private scoped brokering. `AGENT_INTERCOM_SCOPE_ID` is parsed against `^[A-Za-z0-9_-]{16,128}$` at every `IntercomClient` and captured on register only; list, presence, lifecycle, and name/prefix routing are restricted to the same scope while exact full IDs still cross scopes. Replacement orders the old-scope `session_left` before the new-scope `session_joined` and discards any late frame from the pre-replacement socket. Incompatible brokers fail closed without killing, downgrading, or creating second islands. The `@dataforxyz/agent-intercom-core` dependency is pinned to canonical commit `aad1985e125516b318181560293145bf2507cc6d` (`v0.1.0-connect.1`).
