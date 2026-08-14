@@ -3,6 +3,7 @@ import { spawnSync } from "child_process";
 import { basename } from "path";
 import { cwd as processCwd } from "process";
 import { IntercomClient } from "../broker/client.ts";
+import { intercomScopeIdFromEnvForRegistration } from "../protocol-v4/contract.ts";
 import { spawnBrokerIfNeeded } from "../broker/spawn.ts";
 import { getAskTimeoutMs, loadConfig } from "../config.ts";
 import { appendInboxMessage } from "./inbox.ts";
@@ -198,12 +199,22 @@ export class ClaudeIntercomRuntime {
   private replyWaiters = new Map<string, ReplyWaiter>();
 
   private readonly clientFactory: () => IntercomClient;
+  private readonly capturedScopeId: string | undefined;
   private readonly prepareConnection: () => Promise<void>;
   private readonly reconnectDelays: number[];
 
   constructor(identity: ClaudeRuntimeIdentity = buildClaudeRuntimeIdentity(), options: ClaudeIntercomRuntimeOptions = {}) {
     this.identity = identity;
-    this.clientFactory = options.clientFactory ?? (() => new IntercomClient());
+    // Capture AGENT_INTERCOM_SCOPE_ID exactly once at runtime construction so that
+    // reconnects reuse the same private scope even if process.env is mutated later.
+    this.capturedScopeId = intercomScopeIdFromEnvForRegistration(process.env);
+    // Freeze the exact env value the client should see for scope resolution.
+    // When capturedScopeId is undefined (unscoped), pass an empty env so the client
+    // does not silently re-read a later-mutated AGENT_INTERCOM_SCOPE_ID.
+    const scopeSnapshot: NodeJS.ProcessEnv = this.capturedScopeId
+      ? { AGENT_INTERCOM_SCOPE_ID: this.capturedScopeId }
+      : {};
+    this.clientFactory = options.clientFactory ?? (() => new IntercomClient({ env: scopeSnapshot }));
     this.prepareConnection = options.prepareConnection ?? (async () => {
       const config = loadConfig();
       if (!config.enabled) throw new Error("Intercom disabled");

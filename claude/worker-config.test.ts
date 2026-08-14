@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import test from "node:test";
@@ -12,13 +12,16 @@ const staticCapabilityInventory = JSON.parse(readFileSync(
   rootCreatingOptionDeclarations: Array<{ declaration: string; effects: string[] }>;
 };
 
+const REAL_TMP = realpathSync(tmpdir());
+
 function optionSpellingsFromStaticDeclaration(declaration: string): string[] {
   const matches = declaration.match(/(?:^|, )(-{1,2}[A-Za-z][A-Za-z-]*)/g) ?? [];
   return matches.map((match) => match.replace(/^, /, ""));
 }
 
 function withConfig(value: unknown, run: (path: string) => void): void {
-  const root = mkdtempSync(join(tmpdir(), "claude-worker-config-"));
+  const rawRoot = mkdtempSync(join(tmpdir(), "claude-worker-config-"));
+  const root = realpathSync(rawRoot);
   const path = join(root, "worker.json");
   try {
     writeFileSync(path, JSON.stringify(value));
@@ -37,7 +40,7 @@ test("default worker configuration preserves legacy omitted permission fields", 
 
 test("Adversary and Council worker roles receive an immutable read-only ceiling", () => {
   for (const bossRole of ["adversary", "council"] as const) {
-    withConfig({ agents: [{ id: bossRole, cwd: "/tmp", bossRole }] }, (path) => {
+    withConfig({ agents: [{ id: bossRole, cwd: REAL_TMP, bossRole }] }, (path) => {
       const agent = loadWorkerConfig(path).agents[0]!;
       assert.equal(agent.permissionMode, "plan");
       assert.equal(agent.dangerouslySkipPermissions, false);
@@ -78,7 +81,8 @@ test("read-only worker configuration cannot widen itself or its subagent argv", 
 });
 
 test("read-only structured configuration rejects external roots and arbitrary MCP sources", () => {
-  const temp = mkdtempSync(join(tmpdir(), "claude-worker-root-policy-"));
+  const rawTemp = mkdtempSync(join(tmpdir(), "claude-worker-root-policy-"));
+  const temp = realpathSync(rawTemp);
   const workspace = join(temp, "workspace");
   mkdirSync(workspace);
   mkdirSync(`${workspace}-escape`);
@@ -97,7 +101,7 @@ test("read-only structured configuration rejects external roots and arbitrary MC
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }
-  withConfig({ agents: [{ id: "reviewer", cwd: "/tmp/workspace", bossRole: "council", mcpConfig: "/tmp/hostile-mcp.json" }] }, (path) => {
+  withConfig({ agents: [{ id: "reviewer", cwd: REAL_TMP, bossRole: "council", mcpConfig: join(REAL_TMP, "hostile-mcp.json") }] }, (path) => {
     assert.throws(() => loadWorkerConfig(path), /arbitrary MCP capability/);
   });
 });
@@ -183,7 +187,8 @@ test("old ordinary worker JSON keeps omitted defaults while explicit safe mode r
 });
 
 test("read-only worker config requires real nonsymlink directories and stores canonical paths", () => {
-  const temp = mkdtempSync(join(tmpdir(), "claude-worker-canonical-"));
+  const rawTemp = mkdtempSync(join(tmpdir(), "claude-worker-canonical-"));
+  const temp = realpathSync(rawTemp);
   const workspace = join(temp, "workspace");
   const scratch = join(workspace, "scratch");
   const evidence = join(workspace, "evidence");

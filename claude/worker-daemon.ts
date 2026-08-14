@@ -12,6 +12,7 @@ import {
 } from "./worker-config.ts";
 import { IntercomClient } from "../broker/client.ts";
 import { spawnBrokerIfNeeded } from "../broker/spawn.ts";
+import { INTERCOM_SCOPE_ENV, intercomScopeIdFromEnvForRegistration, parseIntercomScopeIdForRegistration } from "../protocol-v4/contract.ts";
 import { loadConfig } from "../config.ts";
 import type { Message, SessionInfo } from "../types.ts";
 import { formatAttachments, formatSessionDisplay } from "./runtime.ts";
@@ -31,6 +32,13 @@ export interface VirtualClaudeAgentOptions {
   client?: IntercomClient;
   prepareConnection?: () => Promise<void>;
   reconnectDelays?: number[];
+  scopeId?: string;
+  env?: NodeJS.ProcessEnv;
+}
+
+export interface ClaudeWorkerDaemonOptions {
+  scopeId?: string;
+  env?: NodeJS.ProcessEnv;
 }
 
 export function formatWorkerActivity(activity: WorkerActivity): string {
@@ -95,8 +103,12 @@ export class VirtualClaudeAgent {
     private readonly runTurn: typeof runClaudeTurn = runClaudeTurn,
     options: VirtualClaudeAgentOptions = {},
   ) {
+    const scopeId = options.scopeId === undefined
+      ? intercomScopeIdFromEnvForRegistration(options.env ?? process.env)
+      : parseIntercomScopeIdForRegistration(options.scopeId);
+    const scopeEnv = scopeId === undefined ? {} : { [INTERCOM_SCOPE_ENV]: scopeId };
+    this.client = options.client ?? new IntercomClient({ env: scopeEnv });
     this.sessionId = agent.sessionId ?? state.agents[agent.id]?.sessionId ?? null;
-    this.client = options.client ?? new IntercomClient();
     this.prepareConnection = options.prepareConnection ?? (async () => {
       const config = loadConfig();
       await spawnBrokerIfNeeded(config.brokerCommand, config.brokerArgs);
@@ -314,11 +326,17 @@ export class VirtualClaudeAgent {
 
 export class ClaudeWorkerDaemon {
   private agents: VirtualClaudeAgent[] = [];
+  private readonly scopeId: string | undefined;
 
   constructor(
     private readonly config: WorkerConfig,
     private readonly reportActivity: WorkerActivityReporter = reportToTerminal,
-  ) {}
+    options: ClaudeWorkerDaemonOptions = {},
+  ) {
+    this.scopeId = options.scopeId === undefined
+      ? intercomScopeIdFromEnvForRegistration(options.env ?? process.env)
+      : parseIntercomScopeIdForRegistration(options.scopeId);
+  }
 
   async start(): Promise<void> {
     const intercomConfig = loadConfig();
@@ -337,6 +355,8 @@ export class ClaudeWorkerDaemon {
         this.config.statePath,
         claudeCommand,
         this.reportActivity,
+        runClaudeTurn,
+        { scopeId: this.scopeId },
       );
     });
     for (const agent of this.agents) await agent.start();
@@ -364,6 +384,7 @@ export class ClaudeWorkerDaemon {
 }
 
 async function main(): Promise<void> {
+  intercomScopeIdFromEnvForRegistration(process.env);
   const configPath = process.argv.includes("--config")
     ? process.argv[process.argv.indexOf("--config") + 1]
     : undefined;

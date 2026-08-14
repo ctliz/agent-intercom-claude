@@ -12,6 +12,7 @@ import {
   INTERCOM_PROTOCOL_VERSION,
   type BrokerConnectTarget,
 } from "./paths.ts";
+import { intercomScopeIdFromEnvForRegistration, parseIntercomScopeIdForRegistration } from "../protocol-v4/contract.ts";
 import type {
   AskCancellationReason,
   BossRegistrationRequest,
@@ -32,6 +33,13 @@ import {
   parseCorrelatedBossControl,
 } from "./boss-contracts.ts";
 import { hasExactDataKeys, isDenseArrayOf, isPlainDataRecord } from "./validation.ts";
+
+export interface IntercomClientOptions {
+  /** Exact private registration scope captured for this client lifecycle. */
+  scopeId?: string;
+  /** Environment used only when scopeId is not explicitly supplied. */
+  env?: NodeJS.ProcessEnv;
+}
 
 export interface SendOptions {
   text: string;
@@ -217,6 +225,7 @@ function isDeliveryFailureCode(value: unknown): value is DeliveryFailureCode {
 
 export class IntercomClient extends EventEmitter {
   private socket: net.Socket | null = null;
+  private readonly scopeId: string | undefined;
   private _sessionId: string | null = null;
   private pendingSends = new Map<string, {
     accepted: boolean;
@@ -233,6 +242,13 @@ export class IntercomClient extends EventEmitter {
   private bossSessionMetadata: BossSessionMetadata | undefined;
   private disconnecting = false;
   private disconnectError: Error | null = null;
+
+  constructor(private readonly options: IntercomClientOptions = {}) {
+    super();
+    this.scopeId = options.scopeId === undefined
+      ? intercomScopeIdFromEnvForRegistration(options.env ?? process.env)
+      : parseIntercomScopeIdForRegistration(options.scopeId);
+  }
 
   private failPending(error: Error): void {
     for (const pending of this.pendingSends.values()) {
@@ -414,6 +430,7 @@ export class IntercomClient extends EventEmitter {
           session,
           ...(!this.remoteAccessCredential && sessionId ? { sessionId } : {}),
           ...(this.remoteAccessCredential ? { access: this.remoteAccessCredential.access } : {}),
+          ...(this.scopeId ? { scopeId: this.scopeId } : {}),
           ...(typeof target === "string" ? {} : { stateId: target.stateId }),
         });
       } catch (error) {

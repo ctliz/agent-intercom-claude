@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.12.0-connect.1 - 2026-08-14
 
+- Introduce Intercom protocol v4 candidate with private scoped brokering. `AGENT_INTERCOM_SCOPE_ID` is parsed against `^[A-Za-z0-9_-]{16,128}$` at every `IntercomClient` and captured on register only; list, presence, lifecycle, and name/prefix routing are restricted to the same scope while exact full IDs still cross scopes. Replacement orders the old-scope `session_left` before the new-scope `session_joined` and discards any late frame from the pre-replacement socket. Incompatible brokers fail closed without killing, downgrading, or creating second islands. The `@dataforxyz/agent-intercom-core` dependency is pinned to canonical commit `aad1985e125516b318181560293145bf2507cc6d` (`v0.1.0-connect.1`).
 - Add a version-gated native Claude cross-session transport for live `cci --tui` sessions, preserving the MCP/plugin/Monitor transport as an explicit fallback. `auto` enables native only for verified Claude Code 2.1.220–2.1.226, falls back to MCP when native attachment fails, and explicit native selection fails closed.
 - Enable Claude's native cross-session feature flag automatically, follow `CLAUDE_CONFIG_DIR` profile registries, and instruct live Claude sessions to relay peer answers with the built-in `SendMessage` tool. A live authenticated Claude Code 2.1.226 socket round trip verified injection and reply delivery.
 - Apply the same `auto | native | mcp` selection to headless `cci`/`ccim` and worker JSON configuration; native headless turns keep direct broker wake/reply handling while omitting the packaged Intercom MCP server.
 - Credit the MIT-licensed `pi-claude-link` registry/socket protocol implementation adapted by the native bridge.
-- Pin Core `8316cbab` and add the dormant Stage-B Boss contract foundation: exact base-v3 capability parsing, optional authoritative bindings, feature-aware run ACLs/discovery, and correlated typed-control validation. The production MCP surface remains unavailable until protected Controller transport and durable dispatch exist.
+- Pin Core `aad1985e` and add the dormant Stage-B Boss contract foundation: exact base-v3 capability parsing, optional authoritative bindings, feature-aware run ACLs/discovery, and correlated typed-control validation. The production MCP surface remains unavailable until protected Controller transport and durable dispatch exist.
 - Make `cci` and worker launches safe by default, validate Claude permission modes, reject appended permission overrides, and force Adversary/Council workers and their subagents under a read-only `plan` ceiling.
 - Reject every appended single-dash option cluster for hardened Claude roles, including Commander forms such as `-pwoutside`, before configuration acceptance or process spawn.
 - Keep Core as one required runtime peer by externalizing its root and subpath imports from every bundle, with exact commit/artifact provenance gates for Core `0.1.0`.

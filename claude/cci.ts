@@ -22,6 +22,7 @@ import {
 } from "./transport.ts";
 import { NativeClaudeBrokerBridge } from "./native-bridge.ts";
 import { waitForNativeClaudePeer } from "./native-protocol.ts";
+import { INTERCOM_SCOPE_ENV, intercomScopeIdFromEnvForRegistration } from "../protocol-v4/contract.ts";
 
 export interface CciOptions {
   id?: string;
@@ -39,6 +40,7 @@ export interface CciOptions {
   tui: boolean;
   claudeCommand: string;
   transport: ClaudeIntercomTransport;
+  intercomEnv?: NodeJS.ProcessEnv;
 }
 
 interface IdentityInput {
@@ -80,6 +82,10 @@ export function createDefaultIdentity(input: IdentityInput): { id: string; name:
     id: sanitizeSegment(`claude-${repo}-${branch}-${suffix}`),
     name: `claude:${readable}#${input.pid}`,
   };
+}
+
+function capturedScopeEnv(scopeId: string | undefined): NodeJS.ProcessEnv {
+  return scopeId === undefined ? { [INTERCOM_SCOPE_ENV]: "" } : { [INTERCOM_SCOPE_ENV]: scopeId };
 }
 
 function detectIdentity(cwd: string): { id: string; name: string } {
@@ -189,6 +195,7 @@ export function parseCciArgs(argv: string[], env: NodeJS.ProcessEnv = process.en
     tui,
     claudeCommand: options.claudeCommand || env.CLAUDE_INTERCOM_CLAUDE_COMMAND || "claude",
     transport: parseClaudeIntercomTransport(options.transport ?? env.CLAUDE_INTERCOM_TRANSPORT, "CLAUDE_INTERCOM_TRANSPORT"),
+    intercomEnv: Object.hasOwn(env, INTERCOM_SCOPE_ENV) ? { [INTERCOM_SCOPE_ENV]: env[INTERCOM_SCOPE_ENV] } : {},
   };
 }
 
@@ -293,7 +300,8 @@ export async function waitForChildExit(child: ChildProcess): Promise<[number | n
 // Live TUI mode: run an interactive `claude` and attach either the native
 // socket bridge or the preserved plugin/inbox/Monitor transport, giving the
 // coi-style "sit in it and get woken" experience without an Anthropic relay.
-async function runCciTui(options: CciOptions, id: string, name: string): Promise<number> {
+async function runCciTui(options: CciOptions, id: string, name: string, scopeId: string | undefined): Promise<number> {
+  const scopeEnv = capturedScopeEnv(scopeId);
   const resolution = resolveClaudeIntercomTransport({
     requested: options.transport,
     claudeCommand: options.claudeCommand,
@@ -335,6 +343,7 @@ async function runCciTui(options: CciOptions, id: string, name: string): Promise
     stdio: "inherit",
     env: {
       ...process.env,
+      ...scopeEnv,
       CLAUDE_INTERCOM_NAME: name,
       CLAUDE_INTERCOM_SESSION_ID: id,
       ...(options.model ? { CLAUDE_INTERCOM_MODEL: options.model } : {}),
@@ -347,7 +356,7 @@ async function runCciTui(options: CciOptions, id: string, name: string): Promise
     try {
       if (!child.pid) throw new Error("Claude started without a process id; native transport cannot attach");
       const peer = await waitForNativeClaudePeer(child.pid);
-      bridge = new NativeClaudeBrokerBridge({ id, name, cwd: options.cwd, model: options.model });
+      bridge = new NativeClaudeBrokerBridge({ id, name, cwd: options.cwd, model: options.model }, { scopeId });
       await bridge.start(peer.socketPath);
     } catch (error) {
       child.kill("SIGTERM");
@@ -355,7 +364,7 @@ async function runCciTui(options: CciOptions, id: string, name: string): Promise
       await bridge?.stop();
       if (resolution.requested !== "auto") throw error;
       process.stderr.write(`Native Claude transport did not attach (${error instanceof Error ? error.message : String(error)}); falling back to MCP.\n`);
-      return runCciTui({ ...options, transport: "mcp" }, id, name);
+      return runCciTui({ ...options, transport: "mcp" }, id, name, scopeId);
     }
   }
   const [code, signal] = await waitForChildExit(child);
@@ -366,12 +375,13 @@ async function runCciTui(options: CciOptions, id: string, name: string): Promise
 }
 
 export async function runCci(options: CciOptions): Promise<number> {
+  const tuiScopeId = options.tui ? intercomScopeIdFromEnvForRegistration(options.intercomEnv ?? process.env) : undefined;
   const identity = detectIdentity(options.cwd);
   const id = sanitizeSegment(options.id ?? identity.id);
   const name = options.name ?? identity.name;
 
   if (options.tui) {
-    return runCciTui(options, id, name);
+    return runCciTui(options, id, name, tuiScopeId);
   }
 
   const statePath = options.statePath ?? DEFAULT_WORKER_STATE_PATH;

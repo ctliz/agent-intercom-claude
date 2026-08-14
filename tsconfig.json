@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["broker/**/*.ts", "claude/**/*.ts", "provider/**/*.ts", "*.ts"]
+  "include": ["broker/**/*.ts", "claude/**/*.ts", "provider/**/*.ts", "protocol-v4/**/*.ts", "*.ts"]
 }

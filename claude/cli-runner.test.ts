@@ -8,6 +8,7 @@ import {
   rmSync,
   symlinkSync,
   writeFileSync,
+  realpathSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
@@ -25,6 +26,8 @@ const staticCapabilityInventory = JSON.parse(readFileSync(
   new URL("./fixtures/claude-2.1.220-static-capability-inventory.json", import.meta.url),
   "utf8",
 )) as StaticCapabilityInventory;
+
+const REAL_TMP = realpathSync(tmpdir());
 
 function optionSpellingsFromStaticDeclaration(declaration: string): string[] {
   const matches = declaration.match(/(?:^|, )(-{1,2}[A-Za-z][A-Za-z-]*)/g) ?? [];
@@ -91,19 +94,19 @@ test("buildClaudeArgs appends extraArgs verbatim at the end", () => {
 });
 
 test("buildClaudeArgs enforces a same-or-tighter read-only ceiling", () => {
-  const args = buildClaudeArgs({ prompt: "review", cwd: "/tmp", permissionCeiling: "read-only" });
+  const args = buildClaudeArgs({ prompt: "review", cwd: REAL_TMP, permissionCeiling: "read-only" });
   assert.equal(args[args.indexOf("--permission-mode") + 1], "plan");
   assert.equal(args.includes("--bare"), true);
   assert.equal(args.includes("--dangerously-skip-permissions"), false);
   assert.throws(() => buildClaudeArgs({
     prompt: "review",
-    cwd: "/tmp",
+    cwd: REAL_TMP,
     permissionCeiling: "read-only",
     permissionMode: "acceptEdits",
   }), /require permission mode plan/);
   assert.throws(() => buildClaudeArgs({
     prompt: "review",
-    cwd: "/tmp",
+    cwd: REAL_TMP,
     permissionCeiling: "read-only",
     dangerouslySkipPermissions: true,
   }), /cannot skip permission checks/);
@@ -215,7 +218,8 @@ test("hardened launches reject Commander short clusters before spawn", () => {
 });
 
 test("read-only structured roots and MCP config cannot widen the assigned workspace", () => {
-  const temp = mkdtempSync(join(tmpdir(), "claude-root-policy-"));
+  const rawTemp = mkdtempSync(join(tmpdir(), "claude-root-policy-"));
+  const temp = realpathSync(rawTemp);
   const workspace = join(temp, "workspace");
   mkdirSync(workspace);
   mkdirSync(`${workspace}-escape`);
@@ -242,14 +246,15 @@ test("read-only structured roots and MCP config cannot widen the assigned worksp
   }
   assert.throws(() => buildClaudeArgs({
     prompt: "review",
-    cwd: "/tmp/workspace",
+    cwd: REAL_TMP,
     permissionCeiling: "read-only",
-    mcpConfig: "/tmp/hostile-mcp.json",
+    mcpConfig: join(REAL_TMP, "hostile-mcp.json"),
   }), /arbitrary MCP capability/);
 });
 
 test("read-only structured roots reject a symlink escape before spawn", () => {
-  const temp = mkdtempSync(join(tmpdir(), "claude-root-policy-"));
+  const rawTemp = mkdtempSync(join(tmpdir(), "claude-root-policy-"));
+  const temp = realpathSync(rawTemp);
   const workspace = join(temp, "workspace");
   const outside = join(temp, "outside");
   mkdirSync(workspace);
@@ -285,7 +290,8 @@ test("ordinary launches preserve explicit capability and bypass opt-ins", () => 
 });
 
 test("hardened launches reject nonexistent cwd/addDirs and canonicalize every launched path", async () => {
-  const temp = mkdtempSync(join(tmpdir(), "claude-canonical-launch-"));
+  const rawTemp = mkdtempSync(join(tmpdir(), "claude-canonical-launch-"));
+  const temp = realpathSync(rawTemp);
   const workspace = join(temp, "workspace");
   const scratch = join(workspace, "scratch");
   const evidence = join(workspace, "evidence");
@@ -331,7 +337,8 @@ test("hardened launches reject nonexistent cwd/addDirs and canonicalize every la
 });
 
 test("concurrent spelling replacement can only fail closed or launch canonical contained paths", async () => {
-  const temp = mkdtempSync(join(tmpdir(), "claude-canonical-race-"));
+  const rawTemp = mkdtempSync(join(tmpdir(), "claude-canonical-race-"));
+  const temp = realpathSync(rawTemp);
   const assigned = join(temp, "assigned");
   const workspace = join(assigned, "workspace");
   const cwdGate = join(assigned, "cwd-gate");

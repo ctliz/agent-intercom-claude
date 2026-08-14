@@ -9,6 +9,7 @@ import {
   createDefaultIdentity,
   nativeClaudeFeatureEnv,
   parseCciArgs,
+  runCci,
   resolveIntercomSelection,
   sanitizeSegment,
   waitForChildExit,
@@ -177,4 +178,21 @@ test("parseCciArgs reads native transport selection from CLI before environment"
   assert.equal(parseCciArgs(["--transport", "native"], { CLAUDE_INTERCOM_TRANSPORT: "mcp" }).transport, "native");
   assert.equal(parseCciArgs(["--transport=mcp"], {}).transport, "mcp");
   assert.throws(() => parseCciArgs(["--transport", "legacy"], {}), /auto, native, or mcp/);
+});
+
+test("cci --tui validates injected AGENT_INTERCOM_SCOPE_ID before spawning Claude", async () => {
+  const root = await mkdtemp(join(tmpdir(), "cci-scope-"));
+  const marker = join(root, "spawned");
+  const command = join(root, "claude.sh");
+  await writeFile(command, `#!/bin/sh\ntouch ${JSON.stringify(marker)}\nexit 0\n`);
+  await import("node:fs/promises").then(({ chmod }) => chmod(command, 0o700));
+  try {
+    const options = parseCciArgs(["--tui", "--claude", command, "--cwd", root], {
+      AGENT_INTERCOM_SCOPE_ID: " invalid-scope",
+    });
+    await assert.rejects(() => runCci(options), /Registration metadata is invalid/);
+    await assert.rejects(() => readFile(marker), /ENOENT/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

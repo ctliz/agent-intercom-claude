@@ -2,6 +2,7 @@ import type { Server } from "node:net";
 import { join } from "node:path";
 import { IntercomClient } from "../broker/client.ts";
 import { spawnBrokerIfNeeded } from "../broker/spawn.ts";
+import { INTERCOM_SCOPE_ENV, intercomScopeIdFromEnvForRegistration, parseIntercomScopeIdForRegistration } from "../protocol-v4/contract.ts";
 import { loadConfig } from "../config.ts";
 import type { Message, SessionInfo } from "../types.ts";
 import { formatAttachments, formatSessionDisplay } from "./runtime.ts";
@@ -52,6 +53,8 @@ export interface NativeClaudeBrokerBridgeOptions extends NativeProtocolPaths {
   socketPath?: string;
   sendNative?: typeof sendNativeClaudeMessage;
   sendFrame?: typeof sendNativeFrame;
+  scopeId?: string;
+  env?: NodeJS.ProcessEnv;
 }
 
 interface PendingRelay {
@@ -96,7 +99,11 @@ export class NativeClaudeBrokerBridge {
     private readonly identity: NativeClaudeBridgeIdentity,
     private readonly options: NativeClaudeBrokerBridgeOptions = {},
   ) {
-    this.client = options.client ?? new IntercomClient();
+    const scopeId = options.scopeId === undefined
+      ? intercomScopeIdFromEnvForRegistration(options.env ?? process.env)
+      : parseIntercomScopeIdForRegistration(options.scopeId);
+    const scopeEnv = scopeId === undefined ? {} : { [INTERCOM_SCOPE_ENV]: scopeId };
+    this.client = options.client ?? new IntercomClient({ env: scopeEnv });
     this.prepareConnection = options.prepareConnection ?? (async () => {
       const config = loadConfig();
       await spawnBrokerIfNeeded(config.brokerCommand, config.brokerArgs);

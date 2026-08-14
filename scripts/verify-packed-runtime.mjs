@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const corePackage = "@dataforxyz/agent-intercom-core";
-const coreDevSpec = "git+https://github.com/dataforxyz/agent-intercom-core.git#8316cbab548f422ad11c78ed887fabeef94817c1";
+const coreDevSpec = "git+https://github.com/ctliz/agent-intercom-core.git#aad1985e125516b318181560293145bf2507cc6d";
 const coreConsumers = new Set([
   "broker.mjs",
   "cci.mjs",

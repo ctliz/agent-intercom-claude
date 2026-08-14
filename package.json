@@ -1,6 +1,6 @@
 {
   "name": "@dataforxyz/agent-intercom-claude",
-  "version": "0.11.0",
+  "version": "0.12.0-connect.1",
   "description": "Claude Code MCP plugin and wakeable worker for direct local messaging with Pi, Codex, and Claude coding-agent sessions.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
@@ -18,6 +18,8 @@
     "!claude/**/*.test.ts",
     "broker/**/*.ts",
     "!broker/**/*.test.ts",
+    "protocol-v4/**/*.ts",
+    "!protocol-v4/**/*.test.ts",
     "provider/protected-service.ts",
     "provider/provider.mjs",
     "!provider/entry.ts",
@@ -50,7 +52,7 @@
     "cci": "tsx claude/cci.ts",
     "ccim": "tsx claude/ccim.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test broker/*.test.ts outbound-outbox.test.ts claude/*.test.ts provider/*.test.ts test/*.test.ts",
+    "test": "node --import tsx --test protocol-v4/*.test.ts broker/*.test.ts outbound-outbox.test.ts claude/*.test.ts provider/*.test.ts test/*.test.ts",
     "verify:core": "node scripts/verify-core-provenance.mjs",
     "verify:pack": "node scripts/verify-packed-runtime.mjs"
   },
@@ -67,7 +69,7 @@
     "@dataforxyz/agent-intercom-core": "0.1.0"
   },
   "devDependencies": {
-    "@dataforxyz/agent-intercom-core": "git+https://github.com/dataforxyz/agent-intercom-core.git#8316cbab548f422ad11c78ed887fabeef94817c1",
+    "@dataforxyz/agent-intercom-core": "git+https://github.com/ctliz/agent-intercom-core.git#aad1985e125516b318181560293145bf2507cc6d",
     "@types/node": "^24.0.0",
     "esbuild": "^0.28.1",
     "tsx": "^4.20.0",
@@ -81,10 +83,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dataforxyz/agent-intercom-claude.git"
+    "url": "git+https://github.com/ctliz/agent-intercom-claude.git"
   },
-  "homepage": "https://github.com/dataforxyz/agent-intercom-claude#readme",
+  "homepage": "https://github.com/ctliz/agent-intercom-claude#readme",
   "bugs": {
-    "url": "https://github.com/dataforxyz/agent-intercom-claude/issues"
+    "url": "https://github.com/ctliz/agent-intercom-claude/issues"
   }
 }

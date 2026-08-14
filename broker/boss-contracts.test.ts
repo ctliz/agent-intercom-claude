@@ -148,9 +148,9 @@ function bossAdvertisement() {
   };
 }
 
-test("Stage-B broker advertises exact base v3 while Boss remains dormant", () => {
+test("Stage-B broker advertises exact base v4 while Boss remains dormant", () => {
   assert.equal(BOSS_ADVERTISEMENT_ENABLED, false);
-  assert.deepEqual(brokerCapabilityAdvertisement(), { baseProtocolVersion: 3, features: [] });
+  assert.deepEqual(brokerCapabilityAdvertisement(), { baseProtocolVersion: 4, features: [] });
 });
 
 test("Boss enrollment requests require Core's exact feature and capability binding", () => {
@@ -158,7 +158,7 @@ test("Boss enrollment requests require Core's exact feature and capability bindi
   assert.deepEqual(parseBossRegistrationRequest(request), request);
   assert.throws(() => parseBossRegistrationRequest({
     ...request,
-    featureContract: { ...request.featureContract, baseProtocolVersion: 4 },
+    featureContract: { ...request.featureContract, baseProtocolVersion: 3 },
   }), /base protocol version/);
   assert.throws(() => parseBossRegistrationRequest({
     ...request,

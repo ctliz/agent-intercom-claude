@@ -5,6 +5,7 @@ import {
   rmSync,
   symlinkSync,
   writeFileSync,
+  realpathSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
@@ -15,7 +16,8 @@ import {
 } from "./permission-policy.ts";
 
 function withTempRoot(run: (root: string) => void): void {
-  const root = mkdtempSync(join(tmpdir(), "claude-add-dir-policy-"));
+  const rawRoot = mkdtempSync(join(tmpdir(), "claude-add-dir-policy-"));
+  const root = realpathSync(rawRoot);
   try {
     run(root);
   } finally {

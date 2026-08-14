@@ -80,7 +80,7 @@ function registration(options: {
   return {
     type: "register",
     protocol: "pi-intercom",
-    version: 3,
+    version: 4,
     sessionId: options.id,
     session: {
       name: options.name,
@@ -122,7 +122,7 @@ async function stopBroker(broker: ChildProcessWithoutNullStreams): Promise<void>
 }
 
 test("stable local session IDs reject competing runtimes without disturbing the incumbent", { concurrency: false }, async () => {
-  const agentDir = mkdtempSync(join(tmpdir(), "agent-intercom-session-collision-"));
+  const agentDir = mkdtempSync(join(tmpdir(), "aic-scl-"));
   const socketPath = join(agentDir, "intercom", "broker.sock");
   const brokerArgs = brokerEntry.endsWith(".ts") ? ["--import", "tsx", brokerEntry] : [brokerEntry];
   const broker = spawn(process.execPath, brokerArgs, {
@@ -267,7 +267,7 @@ test("stable local session IDs reject competing runtimes without disturbing the 
 });
 
 test("matching runtime identity may replace its own stale socket", { concurrency: false }, async () => {
-  const agentDir = mkdtempSync(join(tmpdir(), "agent-intercom-session-reconnect-"));
+  const agentDir = mkdtempSync(join(tmpdir(), "aic-src-"));
   const socketPath = join(agentDir, "intercom", "broker.sock");
   const broker = spawn(process.execPath, ["--import", "tsx", join(repoDir, "broker", "broker.ts")], {
     cwd: repoDir,
