@@ -9,8 +9,8 @@ import {
   WORKER_IDENTITY_VERSION,
   type BossParticipantRole,
   type BossPrivatePrincipal,
-} from "@dataforxyz/agent-intercom-core/boss";
-import { brokerGeneration, participantBindingEpoch, workerGeneration } from "@dataforxyz/agent-intercom-core/canonical";
+} from "@ctliz/agent-intercom-core/boss";
+import { brokerGeneration, participantBindingEpoch, workerGeneration } from "@ctliz/agent-intercom-core/canonical";
 import { resolveIntercomTeam, type TeamSession } from "./team.ts";
 
 const legacyWorker = (id: string, runId: string, managerSessionId: string, state = "running") => ({

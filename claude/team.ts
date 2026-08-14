@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { PARTICIPANT_STATES, TERMINAL_PARTICIPANT_STATES } from "@dataforxyz/agent-intercom-core/boss";
+import { PARTICIPANT_STATES, TERMINAL_PARTICIPANT_STATES } from "@ctliz/agent-intercom-core/boss";
 import type { BossSessionMetadata } from "../types.ts";
 import { getAgentDirPath } from "../broker/paths.ts";
 

@@ -12,7 +12,7 @@ const supportedBossFeature = Object.freeze({
 export const CLAUDE_BOSS_PROTECTED_PROVIDER_BUILD_IDENTITY = Object.freeze({
     contractVersion: "claude.boss-protected-provider.v1",
     adapterId: "claude",
-    providerPackage: "@dataforxyz/agent-intercom-claude",
+    providerPackage: "@ctliz/agent-intercom-claude",
     supportedBaseProtocolVersions: Object.freeze([4]),
     supportedFeatures: Object.freeze([supportedBossFeature]),
     protocolFeatureContractHash: "dae30efe2c48d2de0fe72a7ebdfd107d3feaefc180d42056ba05df6088a94364",

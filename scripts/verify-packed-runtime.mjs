@@ -5,8 +5,8 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
-const corePackage = "@dataforxyz/agent-intercom-core";
-const coreDevSpec = "git+https://github.com/ctliz/agent-intercom-core.git#aad1985e125516b318181560293145bf2507cc6d";
+const corePackage = "@ctliz/agent-intercom-core";
+const coreDevSpec = "git+https://github.com/ctliz/agent-intercom-core.git#37e074970e2a9de32a16fc325607c3b476b0bd45";
 const coreConsumers = new Set([
   "broker.mjs",
   "cci.mjs",
@@ -76,7 +76,7 @@ try {
   if (manifest.peerDependenciesMeta?.[corePackage]?.optional === true) throw new Error("Packed Core peer must not be optional");
   if (manifest.dependencies?.[corePackage] !== undefined) throw new Error("Packed adapter must not install a private Core dependency");
   if (manifest.devDependencies?.[corePackage] !== coreDevSpec) throw new Error("Packed adapter lost the approved Core build commit");
-  if ([...entries.keys()].some((path) => path.includes("node_modules/@dataforxyz/agent-intercom-core/"))) {
+  if ([...entries.keys()].some((path) => path.includes("node_modules/@ctliz/agent-intercom-core/"))) {
     throw new Error("Packed adapter contains a private Core module tree");
   }
 
@@ -84,10 +84,10 @@ try {
     const entry = entries.get(`package/dist/${bundle}`);
     if (!entry) throw new Error(`Packed adapter is missing dist/${bundle}`);
     const source = entry.toString("utf8");
-    if (source.includes("node_modules/@dataforxyz/agent-intercom-core/") || /var POLICY_SEMANTICS_VERSION\s*=/.test(source)) {
+    if (source.includes("node_modules/@ctliz/agent-intercom-core/") || /var POLICY_SEMANTICS_VERSION\s*=/.test(source)) {
       throw new Error(`Packed dist/${bundle} embeds a private Core copy`);
     }
-    if (coreConsumers.has(bundle) && !/from ["']@dataforxyz\/agent-intercom-core(?:\/[A-Za-z/-]+)?["']/.test(source)) {
+    if (coreConsumers.has(bundle) && !/from ["']@ctliz\/agent-intercom-core(?:\/[A-Za-z/-]+)?["']/.test(source)) {
       throw new Error(`Packed dist/${bundle} does not retain its Core peer import`);
     }
   }

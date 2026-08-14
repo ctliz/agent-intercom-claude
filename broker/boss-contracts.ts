@@ -19,13 +19,13 @@ import {
   type BossControlType,
   type BossPrivatePrincipal,
   type BrokerCapabilityAdvertisement,
-} from "@dataforxyz/agent-intercom-core/boss";
+} from "@ctliz/agent-intercom-core/boss";
 import {
   ContractValidationError,
   assertExactKeys,
   assertRecord,
   readHexDigest,
-} from "@dataforxyz/agent-intercom-core/canonical";
+} from "@ctliz/agent-intercom-core/canonical";
 import type {
   BossRegistrationRequest,
   BossSessionMetadata,

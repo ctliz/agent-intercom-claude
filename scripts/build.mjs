@@ -11,8 +11,8 @@ const common = {
   // subpath as imports so all adapter bundles share the consumer's one Core
   // module instance instead of embedding private copies.
   external: [
-    "@dataforxyz/agent-intercom-core",
-    "@dataforxyz/agent-intercom-core/*",
+    "@ctliz/agent-intercom-core",
+    "@ctliz/agent-intercom-core/*",
   ],
 };
 
@@ -56,7 +56,7 @@ const buildResults = await Promise.all([
 
 for (const result of buildResults) {
   for (const input of Object.keys(result.metafile.inputs)) {
-    if (input.includes("node_modules/@dataforxyz/agent-intercom-core/")) {
+    if (input.includes("node_modules/@ctliz/agent-intercom-core/")) {
       throw new Error(`Core runtime was embedded in an adapter bundle through ${input}`);
     }
   }

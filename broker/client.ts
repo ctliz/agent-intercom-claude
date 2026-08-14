@@ -1,8 +1,8 @@
 import { EventEmitter } from "events";
 import net from "net";
 import { randomUUID } from "crypto";
-import { POLICY_SEMANTICS_HASH, POLICY_SEMANTICS_VERSION } from "@dataforxyz/agent-intercom-core";
-import type { BossControlEnvelope } from "@dataforxyz/agent-intercom-core/boss";
+import { POLICY_SEMANTICS_HASH, POLICY_SEMANTICS_VERSION } from "@ctliz/agent-intercom-core";
+import type { BossControlEnvelope } from "@ctliz/agent-intercom-core/boss";
 import { writeMessage, createMessageReader } from "./framing.ts";
 import { PersistentOutboundOutbox } from "../outbound-outbox.ts";
 import { loadRemoteAccessCredential, writeRemoteSessionCredential, type LoadedRemoteAccessCredential } from "./access-credential.ts";

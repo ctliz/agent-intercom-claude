@@ -4,10 +4,10 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 export const APPROVED_CORE = Object.freeze({
-  name: "@dataforxyz/agent-intercom-core",
+  name: "@ctliz/agent-intercom-core",
   version: "0.1.0",
-  commit: "aad1985e125516b318181560293145bf2507cc6d",
-  integrity: "sha512-ycbxwD+OrwmDK+vJ3Mei7WKxbYI9GDEGoGQbXQwhgaT8twRmR3ny8WzEXei6NaIITDtEbWk3Qd0U5ZmQsE35mg==",
+  commit: "37e074970e2a9de32a16fc325607c3b476b0bd45",
+  integrity: "sha512-b5MXnfKh/RCjKoVor0tsFO+NKAqPROWgkgbHt7jiHxhdVbSh7gWvOdnVUtpSdPwJLYKSQrYXT+TJl7QocdJEPA==",
 });
 
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "..");

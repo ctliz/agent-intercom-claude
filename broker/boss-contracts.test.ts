@@ -17,8 +17,8 @@ import {
   brokerFeatureSetHash,
   type BossParticipantRole,
   type BossPrivatePrincipal,
-} from "@dataforxyz/agent-intercom-core/boss";
-import { brokerGeneration, participantBindingEpoch, workerGeneration } from "@dataforxyz/agent-intercom-core/canonical";
+} from "@ctliz/agent-intercom-core/boss";
+import { brokerGeneration, participantBindingEpoch, workerGeneration } from "@ctliz/agent-intercom-core/canonical";
 import type { BossSessionMetadata, SessionInfo } from "../types.ts";
 import { authorizeSessionAction, visibleSessions } from "./authorization.ts";
 import {

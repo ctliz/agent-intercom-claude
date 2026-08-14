@@ -4,8 +4,8 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
-const corePackage = "@dataforxyz/agent-intercom-core";
-const coreCommit = "aad1985e125516b318181560293145bf2507cc6d";
+const corePackage = "@ctliz/agent-intercom-core";
+const coreCommit = "37e074970e2a9de32a16fc325607c3b476b0bd45";
 const coreDevSpec = `git+https://github.com/ctliz/agent-intercom-core.git#${coreCommit}`;
 const coreConsumers = new Set([
   "broker.mjs",
@@ -17,13 +17,13 @@ const coreConsumers = new Set([
 
 function assertExternalCore(bundleName: string, source: string): void {
   assert.equal(
-    source.includes("node_modules/@dataforxyz/agent-intercom-core/"),
+    source.includes("node_modules/@ctliz/agent-intercom-core/"),
     false,
     `${bundleName} embeds a private Core copy`,
   );
   assert.equal(/var POLICY_SEMANTICS_VERSION\s*=/.test(source), false, `${bundleName} embeds Core policy constants`);
   if (coreConsumers.has(bundleName)) {
-    assert.match(source, /from ["']@dataforxyz\/agent-intercom-core(?:\/[A-Za-z/-]+)?["']/, `${bundleName} must retain a Core peer import`);
+    assert.match(source, /from ["']@ctliz\/agent-intercom-core(?:\/[A-Za-z/-]+)?["']/, `${bundleName} must retain a Core peer import`);
   }
 }
 
@@ -37,15 +37,15 @@ function productionTypeScriptFiles(directory: string): string[] {
 
 test("source and every built bundle use Core only through the runtime peer", () => {
   const buildSource = readFileSync(join(repositoryRoot, "scripts/build.mjs"), "utf8");
-  assert.match(buildSource, /"@dataforxyz\/agent-intercom-core"/);
-  assert.match(buildSource, /"@dataforxyz\/agent-intercom-core\/\*"/);
+  assert.match(buildSource, /"@ctliz\/agent-intercom-core"/);
+  assert.match(buildSource, /"@ctliz\/agent-intercom-core\/\*"/);
 
   const sourceSpecifiers = ["broker", "claude"]
     .flatMap((directory) => productionTypeScriptFiles(join(repositoryRoot, directory)))
-    .flatMap((path) => readFileSync(path, "utf8").match(/@dataforxyz\/agent-intercom-core[^"'\s]*/g) ?? []);
+    .flatMap((path) => readFileSync(path, "utf8").match(/@ctliz\/agent-intercom-core[^"'\s]*/g) ?? []);
   assert.equal(sourceSpecifiers.length > 0, true);
   for (const specifier of sourceSpecifiers) {
-    assert.match(specifier, /^@dataforxyz\/agent-intercom-core(?:\/[A-Za-z/-]+)?$/);
+    assert.match(specifier, /^@ctliz\/agent-intercom-core(?:\/[A-Za-z/-]+)?$/);
     assert.equal(specifier.includes("/dist/"), false);
   }
 

@@ -1,11 +1,11 @@
-import { type AuthorizationDecision, type PolicyAction, type PolicyPrincipal, type PolicyState } from "@dataforxyz/agent-intercom-core";
+import { type AuthorizationDecision, type PolicyAction, type PolicyPrincipal, type PolicyState } from "@ctliz/agent-intercom-core";
 import {
   authorizeFeatureAware,
   type BossControlKind,
   type BossPolicyAction,
   type FeatureAwareAuthorizationDecision,
   type FeatureAwarePolicyState,
-} from "@dataforxyz/agent-intercom-core/boss";
+} from "@ctliz/agent-intercom-core/boss";
 import type { SessionInfo } from "../types.ts";
 import { parseBossSessionMetadata } from "./boss-contracts.ts";
 

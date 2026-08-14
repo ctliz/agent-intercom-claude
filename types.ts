@@ -7,7 +7,7 @@ import type {
   BossWorkerIdentityV2,
   BrokerCapabilityAdvertisement,
   ParticipantState,
-} from "@dataforxyz/agent-intercom-core/boss";
+} from "@ctliz/agent-intercom-core/boss";
 
 export interface BossLiveWorkerAuthority {
   identity: BossWorkerIdentityV2;
