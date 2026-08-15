@@ -96,13 +96,28 @@ function shortHash(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 8);
 }
 
+const GENERIC_SESSION_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;
+
 export function buildClaudeRuntimeIdentity(env: NodeJS.ProcessEnv = process.env, cwd = env.PWD || processCwd(), pid = process.pid): ClaudeRuntimeIdentity {
-  const sessionId = env.CLAUDE_INTERCOM_SESSION_ID?.trim()
-    || env.CLAUDE_PEER_ID?.trim()
-    || `claude-${pid}-${shortHash(cwd)}`;
+  let sessionId = env.CLAUDE_INTERCOM_SESSION_ID?.trim()
+    || env.CLAUDE_PEER_ID?.trim();
+  if (!sessionId && env.AGENT_INTERCOM_SESSION_ID !== undefined) {
+    const raw = env.AGENT_INTERCOM_SESSION_ID.trim();
+    if (raw) {
+      if (!GENERIC_SESSION_ID_REGEX.test(raw)) {
+        throw new Error("Invalid AGENT_INTERCOM_SESSION_ID: must match ^[A-Za-z0-9_-]{1,128}$");
+      }
+      sessionId = raw;
+    }
+  }
+  if (!sessionId) {
+    sessionId = `claude-${pid}-${shortHash(cwd)}`;
+  }
+
   const cwdName = basename(cwd) || "workspace";
   const name = env.CLAUDE_INTERCOM_NAME?.trim()
     || env.CLAUDE_PEER_NAME?.trim()
+    || (env.AGENT_INTERCOM_SESSION_NAME !== undefined && env.AGENT_INTERCOM_SESSION_NAME.trim() ? env.AGENT_INTERCOM_SESSION_NAME.trim() : undefined)
     || `claude-${cwdName}-${pid}`;
   return {
     sessionId,

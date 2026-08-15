@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const corePackage = "@ctliz/agent-intercom-core";
-const coreDevSpec = "git+https://github.com/ctliz/agent-intercom-core.git#37e074970e2a9de32a16fc325607c3b476b0bd45";
+const coreDevSpec = "0.2.0";
 const coreConsumers = new Set([
   "broker.mjs",
   "cci.mjs",
@@ -72,10 +72,10 @@ try {
   const manifestEntry = entries.get("package/package.json");
   if (!manifestEntry) throw new Error("Packed adapter is missing package.json");
   const manifest = JSON.parse(manifestEntry.toString("utf8"));
-  if (manifest.peerDependencies?.[corePackage] !== "0.1.0") throw new Error("Packed adapter must require Core peer 0.1.0");
+  if (manifest.peerDependencies?.[corePackage] !== "0.2.0") throw new Error("Packed adapter must require Core peer 0.2.0");
   if (manifest.peerDependenciesMeta?.[corePackage]?.optional === true) throw new Error("Packed Core peer must not be optional");
   if (manifest.dependencies?.[corePackage] !== undefined) throw new Error("Packed adapter must not install a private Core dependency");
-  if (manifest.devDependencies?.[corePackage] !== coreDevSpec) throw new Error("Packed adapter lost the approved Core build commit");
+  if (manifest.devDependencies?.[corePackage] !== coreDevSpec) throw new Error("Packed adapter lost the approved Core dependency");
   if ([...entries.keys()].some((path) => path.includes("node_modules/@ctliz/agent-intercom-core/"))) {
     throw new Error("Packed adapter contains a private Core module tree");
   }
@@ -134,7 +134,7 @@ try {
     }
   }
 
-  console.log(`Verified complete plugin+MCP+monitors+dist chain and ${bundles.length} packed bundles using Core peer 0.1.0`);
+  console.log(`Verified complete plugin+MCP+monitors+dist chain and ${bundles.length} packed bundles using Core peer 0.2.0`);
 } finally {
   if (temp) rmSync(temp, { recursive: true, force: true });
 }

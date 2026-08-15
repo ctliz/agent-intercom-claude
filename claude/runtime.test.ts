@@ -66,6 +66,57 @@ test("buildClaudeRuntimeIdentity uses explicit environment overrides", () => {
   assert.equal(identity.model, "sonnet-test");
 });
 
+test("buildClaudeRuntimeIdentity supports generic AGENT_INTERCOM_SESSION_ID and NAME", () => {
+  const identity = buildClaudeRuntimeIdentity({
+    AGENT_INTERCOM_SESSION_ID: "tmuxdeck-1a2b3c4d-5e6f-47a8-b9c0-d1e2f3a4b5c6",
+    AGENT_INTERCOM_SESSION_NAME: "workspace · Claude 01",
+    PWD: "/tmp/repo",
+  }, "/ignored", 123);
+
+  assert.equal(identity.sessionId, "tmuxdeck-1a2b3c4d-5e6f-47a8-b9c0-d1e2f3a4b5c6");
+  assert.equal(identity.name, "workspace · Claude 01");
+});
+
+test("buildClaudeRuntimeIdentity prefers harness-specific ID/name over generic", () => {
+  const identity = buildClaudeRuntimeIdentity({
+    CLAUDE_INTERCOM_SESSION_ID: "claude-specific-id",
+    CLAUDE_INTERCOM_NAME: "claude-specific-name",
+    AGENT_INTERCOM_SESSION_ID: "invalid generic id with spaces",
+    AGENT_INTERCOM_SESSION_NAME: "generic-name",
+    PWD: "/tmp/repo",
+  }, "/ignored", 123);
+
+  assert.equal(identity.sessionId, "claude-specific-id");
+  assert.equal(identity.name, "claude-specific-name");
+});
+
+test("buildClaudeRuntimeIdentity treats whitespace-only generic ID and name as absent", () => {
+  for (const empty of ["", "   ", "\t\n"]) {
+    const identity = buildClaudeRuntimeIdentity({
+      AGENT_INTERCOM_SESSION_ID: empty,
+      AGENT_INTERCOM_SESSION_NAME: empty,
+      PWD: "/tmp/project",
+    }, "/tmp/project", 42);
+
+    assert.match(identity.sessionId, /^claude-42-[0-9a-f]{8}$/);
+    assert.equal(identity.name, "claude-project-42");
+  }
+});
+
+test("buildClaudeRuntimeIdentity fails closed on invalid non-empty generic AGENT_INTERCOM_SESSION_ID", () => {
+  for (const invalid of ["bad session id with spaces", "bad$symbol!", "a".repeat(129)]) {
+    assert.throws(
+      () => buildClaudeRuntimeIdentity({ AGENT_INTERCOM_SESSION_ID: invalid }, "/tmp", 123),
+      (err: any) => {
+        assert.equal(err.message, "Invalid AGENT_INTERCOM_SESSION_ID: must match ^[A-Za-z0-9_-]{1,128}$");
+        assert.equal(err.message.includes(invalid), false);
+        return true;
+      },
+      `must reject invalid generic session ID: ${invalid}`,
+    );
+  }
+});
+
 test("buildClaudeRuntimeIdentity creates stable-ish fallback identity from cwd and pid", () => {
   const identity = buildClaudeRuntimeIdentity({ PWD: "/tmp/project" }, "/tmp/project", 42);
 

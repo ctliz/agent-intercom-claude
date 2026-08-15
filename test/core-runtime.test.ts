@@ -5,8 +5,7 @@ import test from "node:test";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const corePackage = "@ctliz/agent-intercom-core";
-const coreCommit = "37e074970e2a9de32a16fc325607c3b476b0bd45";
-const coreDevSpec = `git+https://github.com/ctliz/agent-intercom-core.git#${coreCommit}`;
+const coreDevSpec = "0.2.0";
 const coreConsumers = new Set([
   "broker.mjs",
   "cci.mjs",
@@ -66,8 +65,74 @@ test("the shipped package requires one exact, non-optional Core peer", () => {
     devDependencies?: Record<string, string>;
   };
   assert.equal(manifest.files?.includes("dist/**/*"), true);
-  assert.equal(manifest.peerDependencies?.[corePackage], "0.1.0");
+  assert.equal(manifest.peerDependencies?.[corePackage], "0.2.0");
   assert.equal(manifest.peerDependenciesMeta?.[corePackage]?.optional, undefined);
   assert.equal(manifest.dependencies?.[corePackage], undefined);
   assert.equal(manifest.devDependencies?.[corePackage], coreDevSpec);
+});
+
+test("verifyPublishedProvenance correctly verifies frozen Core 0.2.0 metadata", async () => {
+  const { APPROVED_CORE, parseAndVerifyPublishedProvenance, verifyPublishedProvenance } = await import("../scripts/verify-core-provenance.mjs");
+
+  // Valid published metadata with dist.integrity matches exactly
+  assert.doesNotThrow(() => {
+    parseAndVerifyPublishedProvenance(JSON.stringify({
+      version: APPROVED_CORE.version,
+      "dist.integrity": APPROVED_CORE.integrity,
+    }));
+  });
+
+  // Valid published metadata with nested dist object
+  assert.doesNotThrow(() => {
+    parseAndVerifyPublishedProvenance(JSON.stringify({
+      version: APPROVED_CORE.version,
+      dist: { integrity: APPROVED_CORE.integrity },
+    }));
+  });
+
+  // Mismatched version throws
+  assert.throws(
+    () => {
+      parseAndVerifyPublishedProvenance(JSON.stringify({
+        version: "0.1.9",
+        "dist.integrity": APPROVED_CORE.integrity,
+      }));
+    },
+    /published Core version must be "0.2.0"/,
+  );
+
+  // Mismatched integrity throws
+  assert.throws(
+    () => {
+      parseAndVerifyPublishedProvenance(JSON.stringify({
+        version: APPROVED_CORE.version,
+        "dist.integrity": "sha512-invalid==",
+      }));
+    },
+    /published Core artifact integrity must be/,
+  );
+
+  // Mock runner for verifyPublishedProvenance
+  const mockRunner = (cmd: string, args: string[]) => {
+    assert.equal(cmd, "npm");
+    assert.deepEqual(args, [
+      "view",
+      `${APPROVED_CORE.name}@${APPROVED_CORE.version}`,
+      "version",
+      "dist.integrity",
+      "--json",
+    ]);
+    return {
+      status: 0,
+      stdout: JSON.stringify({
+        version: APPROVED_CORE.version,
+        "dist.integrity": APPROVED_CORE.integrity,
+      }),
+      stderr: "",
+    };
+  };
+
+  assert.doesNotThrow(() => {
+    verifyPublishedProvenance(mockRunner as never);
+  });
 });

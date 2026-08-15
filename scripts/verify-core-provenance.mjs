@@ -5,25 +5,25 @@ import { spawnSync } from "node:child_process";
 
 export const APPROVED_CORE = Object.freeze({
   name: "@ctliz/agent-intercom-core",
-  version: "0.1.0",
-  commit: "37e074970e2a9de32a16fc325607c3b476b0bd45",
-  integrity: "sha512-b5MXnfKh/RCjKoVor0tsFO+NKAqPROWgkgbHt7jiHxhdVbSh7gWvOdnVUtpSdPwJLYKSQrYXT+TJl7QocdJEPA==",
+  version: "0.2.0",
+  integrity: "sha512-bpifL9cc8cwMm74fpvjgRBarXMwn6BY4cST4ry6HrGtfpRTXyiJOtwfNnhORF6xTKwQNOWakxS1sZALczInvkQ==",
+  resolved: "https://registry.npmjs.org/@ctliz/agent-intercom-core/-/agent-intercom-core-0.2.0.tgz",
 });
 
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const devSpec = `git+https://github.com/ctliz/agent-intercom-core.git#${APPROVED_CORE.commit}`;
+const devSpec = APPROVED_CORE.version;
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-function requireEqual(actual, expected, field) {
+export function requireEqual(actual, expected, field) {
   if (actual !== expected) {
     throw new Error(`${field} must be ${JSON.stringify(expected)}; received ${JSON.stringify(actual)}`);
   }
 }
 
-function verifyLocalProvenance() {
+export function verifyLocalProvenance() {
   const manifest = readJson(join(repositoryRoot, "package.json"));
   const lock = readJson(join(repositoryRoot, "package-lock.json"));
   const lockRoot = lock.packages?.[""];
@@ -36,28 +36,30 @@ function verifyLocalProvenance() {
   requireEqual(lockRoot?.peerDependencies?.[APPROVED_CORE.name], APPROVED_CORE.version, "locked Core peer dependency");
   requireEqual(lockRoot?.devDependencies?.[APPROVED_CORE.name], devSpec, "locked Core development provenance");
   requireEqual(lockedCore?.version, APPROVED_CORE.version, "supplied Core version");
-  requireEqual(lockedCore?.resolved, devSpec, "supplied Core commit");
+  requireEqual(lockedCore?.resolved, APPROVED_CORE.resolved, "supplied Core resolved URL");
   requireEqual(lockedCore?.integrity, APPROVED_CORE.integrity, "supplied Core artifact integrity");
   requireEqual(lockedCore?.dev, true, "supplied Core dependency class");
 }
 
-function verifyPublishedProvenance() {
-  const result = spawnSync("npm", [
+export function parseAndVerifyPublishedProvenance(jsonString) {
+  const published = typeof jsonString === "string" ? JSON.parse(jsonString) : jsonString;
+  requireEqual(published.version, APPROVED_CORE.version, "published Core version");
+  requireEqual(published["dist.integrity"] ?? published.dist?.integrity, APPROVED_CORE.integrity, "published Core artifact integrity");
+}
+
+export function verifyPublishedProvenance(runner = spawnSync) {
+  const result = runner("npm", [
     "view",
     `${APPROVED_CORE.name}@${APPROVED_CORE.version}`,
     "version",
     "dist.integrity",
-    "gitHead",
     "--json",
   ], { encoding: "utf8" });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`Unable to inspect published Core ${APPROVED_CORE.version}: ${(result.stderr || result.stdout).trim()}`);
   }
-  const published = JSON.parse(result.stdout);
-  requireEqual(published.version, APPROVED_CORE.version, "published Core version");
-  requireEqual(published["dist.integrity"] ?? published.dist?.integrity, APPROVED_CORE.integrity, "published Core artifact integrity");
-  requireEqual(published.gitHead, APPROVED_CORE.commit, "published Core commit");
+  parseAndVerifyPublishedProvenance(result.stdout);
 }
 
 verifyLocalProvenance();
