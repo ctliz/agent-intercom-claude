@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0-connect.2 - 2026-08-18
+
+- Document standard stdio MCP setup for Grok Build and AGY, including host-neutral identity variables, scope requirements, source-checkout configuration, manual `intercom_pending` polling, and the absence of wake-on-message support.
+
 ## 0.12.0-connect.3 - 2026-08-14
 
 - Fix package bundling by adding `monitors/**/*` (`monitors/monitors.json`) to `package.json` `files`, ensuring Claude Code plugin monitor configurations resolve properly at runtime when installed from the packaged npm artifact.
