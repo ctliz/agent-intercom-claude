@@ -149,6 +149,44 @@ claude mcp add claude-intercom -- claude-intercom-mcp
 
 With `--transport mcp`, `cci` does this automatically for each normal headless worker. Native headless workers are still woken and replied through the worker daemon's broker connection, but omit the packaged MCP server from the Claude turn. `ccim` intentionally uses Claude's `--safe-mode`, which disables MCP servers along with plugins, hooks, and skills.
 
+### Other stdio MCP hosts
+
+The `claude-intercom-mcp` executable is a standard stdio MCP server, so Grok Build, AGY, and other compatible local hosts can use it without installing the Claude Code plugin. An npm/global installation provides that executable; for a source checkout, configure `node` with the absolute path to `dist/claude-server.mjs`. Node 20+ is required.
+
+Use `AGENT_INTERCOM_SESSION_ID` and `AGENT_INTERCOM_SESSION_NAME` for a host-neutral identity; `CLAUDE_INTERCOM_SESSION_ID` and `CLAUDE_INTERCOM_NAME` remain higher-priority compatibility aliases. Do not share a fixed session ID between concurrent host sessions.
+
+A plain MCP host is connected only while its MCP process is alive. Incoming Intercom messages are durable and appear through `intercom_pending`, but this server cannot itself inject a new prompt into Grok or AGY. Use `intercom_send` plus `intercom_pending` for manual-polling workflows; a host-specific relay is required for wake-on-message.
+
+For Grok Build, register the server and use a unique static ID for an individual long-lived probe or worker:
+
+```bash
+grok mcp add agent-intercom \
+  -e AGENT_INTERCOM_SESSION_ID=grok-probe-01 \
+  -e AGENT_INTERCOM_SESSION_NAME=grok-probe \
+  -e CLAUDE_INTERCOM_MODEL=grok-build \
+  -- claude-intercom-mcp
+```
+
+For AGY, add the equivalent entry to `~/.gemini/config/mcp_config.json` (replace the source-checkout paths when using an installed `claude-intercom-mcp` executable):
+
+```json
+{
+  "mcpServers": {
+    "agent-intercom": {
+      "command": "/absolute/path/to/node",
+      "args": ["/absolute/path/to/agent-intercom-claude/dist/claude-server.mjs"],
+      "env": {
+        "AGENT_INTERCOM_SESSION_ID": "agy-probe-01",
+        "AGENT_INTERCOM_SESSION_NAME": "agy-probe",
+        "CLAUDE_INTERCOM_MODEL": "agy"
+      }
+    }
+  }
+}
+```
+
+Both hosts must use the same `AGENT_INTERCOM_SCOPE_ID` as their intended peers, or leave it unset for the default local scope. Call `intercom_whoami` once after startup, then use `intercom_list`, `intercom_send`, and `intercom_pending` to verify delivery.
+
 Optional identity variables can be attached at registration time:
 
 ```bash
@@ -413,6 +451,8 @@ environment when no config file is given (`CLAUDE_INTERCOM_WORKER_ID`, `…_NAME
 | `CLAUDE_INTERCOM_NAME` | MCP server | Discoverable session name |
 | `CLAUDE_INTERCOM_SESSION_ID` | MCP server | Stable intercom id |
 | `CLAUDE_INTERCOM_MODEL` | MCP server | Model label shown to peers |
+| `AGENT_INTERCOM_SESSION_ID` / `_NAME` | MCP server | Host-neutral identity fallback; Claude-specific values take precedence |
+| `AGENT_INTERCOM_SCOPE_ID` | MCP server | Broker-enforced local routing scope |
 | `CLAUDE_INTERCOM_EFFORT` | `cci` / `ccim` | Effort level forwarded to every Claude turn |
 | `CLAUDE_INTERCOM_CWD` / `_INSTRUCTIONS` | `cci` / `ccim` | Defaults for `--cwd` / `--instructions` |
 | `CLAUDE_INTERCOM_CLAUDE_COMMAND` | workers | Claude Code executable (default `claude`) |
