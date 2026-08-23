@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.0-connect.3 - 2026-08-23
+
+- Add complete OpenAI MCP annotations for all nine Intercom tools and verify their exact semantics in tests.
+- Reference every MCP tool by name so tool coverage is complete.
+- Explicitly disable shell execution for production and release-verification child processes.
+
 ## 0.13.0-connect.2 - 2026-08-18
 
 - Document standard stdio MCP setup for Grok Build and AGY, including host-neutral identity variables, scope requirements, source-checkout configuration, manual `intercom_pending` polling, and the absence of wake-on-message support.
