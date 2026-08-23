@@ -271,7 +271,7 @@ export async function bindNativeClaudeSocket(socketPath: string, onFrame: (frame
 
 function processStart(pid: number): Promise<string | undefined> {
   return new Promise((resolve) => {
-    execFile("ps", ["-o", "lstart=", "-p", String(pid)], (error, stdout) => resolve(error ? undefined : stdout.trim() || undefined));
+    execFile("ps", ["-o", "lstart=", "-p", String(pid)], { shell: false }, (error, stdout) => resolve(error ? undefined : stdout.trim() || undefined));
   });
 }
 

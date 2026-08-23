@@ -66,6 +66,7 @@ function gitString(cwd: string, args: string[]): string | null {
     cwd,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
+    shell: false,
   });
   if (result.status !== 0) return null;
   const trimmed = result.stdout.trim();
@@ -341,6 +342,7 @@ async function runCciTui(options: CciOptions, id: string, name: string, scopeId:
   const child = spawn(options.claudeCommand, args, {
     cwd: options.cwd,
     stdio: "inherit",
+    shell: false,
     env: {
       ...process.env,
       ...scopeEnv,

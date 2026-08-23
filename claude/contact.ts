@@ -20,14 +20,14 @@ export function copyTextToClipboard(text: string): boolean {
           ["clip.exe", []],
         ];
   for (const [command, args] of candidates) {
-    if (spawnSync("which", [command], { stdio: "ignore" }).status !== 0) continue;
+    if (spawnSync("which", [command], { stdio: "ignore", shell: false }).status !== 0) continue;
     if (command === "wl-copy") {
-      const child = spawn(command, args, { stdio: ["pipe", "ignore", "ignore"] });
+      const child = spawn(command, args, { stdio: ["pipe", "ignore", "ignore"], shell: false });
       child.stdin.end(text);
       child.unref();
       return true;
     }
-    if (spawnSync(command, args, { input: text, stdio: ["pipe", "ignore", "ignore"] }).status === 0) return true;
+    if (spawnSync(command, args, { input: text, stdio: ["pipe", "ignore", "ignore"], shell: false }).status === 0) return true;
   }
   return false;
 }

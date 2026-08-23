@@ -116,6 +116,7 @@ export function runClaudeTurn(options: ClaudeTurnOptions): Promise<ClaudeTurnRes
         cwd: launch.cwd,
         env: { ...process.env, ...options.env },
         stdio: ["pipe", "pipe", "pipe"],
+        shell: false,
       });
     } finally {
       // Directory descriptors remain open across the synchronous spawn setup,

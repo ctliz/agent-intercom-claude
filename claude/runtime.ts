@@ -183,6 +183,7 @@ export function detectGitRoot(cwd: string): string | null {
     cwd,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
+    shell: false,
   });
   if (result.status !== 0) return null;
   return result.stdout.trim() || null;

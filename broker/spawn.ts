@@ -191,6 +191,7 @@ export function getBrokerSpawnOptions(
   cwd: string;
   env: NodeJS.ProcessEnv;
   windowsHide: true;
+  shell: false;
 } {
   return {
     detached: true,
@@ -198,6 +199,7 @@ export function getBrokerSpawnOptions(
     cwd: extensionDir,
     env: { ...env, PI_CODING_AGENT_DIR: getAgentDirPath(env), NODE_NO_WARNINGS: "1" },
     windowsHide: true,
+    shell: false,
   };
 }
 

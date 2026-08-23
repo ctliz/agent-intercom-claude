@@ -51,6 +51,7 @@ function createPackageArchive(temp) {
     cwd: repositoryRoot,
     env: { ...process.env, npm_config_cache: join(temp, "npm-cache") },
     encoding: "utf8",
+    shell: false,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`npm pack failed: ${result.stderr || result.stdout}`);

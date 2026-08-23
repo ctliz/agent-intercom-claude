@@ -49,6 +49,7 @@ export function probeClaudeVersion(command = "claude"): ClaudeVersionProbe {
   const result = spawnSync(command, ["--version"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
   });
   if (result.error || result.status !== 0) {
     return {

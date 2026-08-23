@@ -54,7 +54,7 @@ export function verifyPublishedProvenance(runner = spawnSync) {
     "version",
     "dist.integrity",
     "--json",
-  ], { encoding: "utf8" });
+  ], { encoding: "utf8", shell: false });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`Unable to inspect published Core ${APPROVED_CORE.version}: ${(result.stderr || result.stdout).trim()}`);

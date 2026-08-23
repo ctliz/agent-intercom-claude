@@ -17,6 +17,12 @@ interface ToolDefinition {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations: {
+    readOnlyHint: boolean;
+    destructiveHint: boolean;
+    idempotentHint: boolean;
+    openWorldHint: boolean;
+  };
   handler: ToolHandler;
 }
 
@@ -78,18 +84,21 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
       name: "intercom_whoami",
       description: "Return this Claude session's intercom identity for reliable targeting.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       handler: async () => runtime.whoami(),
     },
     {
       name: "intercom_team",
       description: "Show your current manager and the live coworkers owned by that manager. No arguments are required.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       handler: async () => runtime.team(),
     },
     {
       name: "intercom_status",
       description: "Show intercom connection status, active sessions, unread messages, and pending asks.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       handler: async () => runtime.status(),
     },
     {
@@ -103,6 +112,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         },
         additionalProperties: false,
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       handler: async (args) => runtime.list(
         args.scope === "directory" || args.scope === "repo" ? args.scope : "machine",
         asBoolean(args.include_self, false),
@@ -117,6 +127,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         required: ["summary"],
         additionalProperties: false,
       },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
       handler: async (args) => runtime.setSummary(asString(args.summary, "summary")),
     },
     {
@@ -132,6 +143,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         required: ["to", "message"],
         additionalProperties: false,
       },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       handler: async (args) => runtime.send(asString(args.to, "to"), asString(args.message, "message"), asAttachmentArray(args.attachments)),
     },
     {
@@ -148,6 +160,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         required: ["to", "message"],
         additionalProperties: false,
       },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
       handler: async (args, signal) => runtime.ask(
         asString(args.to, "to"),
         asString(args.message, "message"),
@@ -164,6 +177,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         properties: { mark_read: { type: "boolean", default: false } },
         additionalProperties: false,
       },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
       handler: async (args) => runtime.pending(asBoolean(args.mark_read, false)),
     },
     {
@@ -179,6 +193,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         required: ["message"],
         additionalProperties: false,
       },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
       handler: async (args) => runtime.reply(asString(args.message, "message"), typeof args.to === "string" ? args.to : undefined, args.which === "oldest" || args.which === "latest" ? args.which : undefined),
     },
   ];
@@ -222,7 +237,7 @@ export async function handleMcpRequest(request: JsonRpcRequest, runtime: ClaudeI
       return ok(request.id, {});
     case "tools/list":
       return ok(request.id, {
-        tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+        tools: tools.map(({ name, description, inputSchema, annotations }) => ({ name, description, inputSchema, annotations })),
       });
     case "tools/call": {
       const name = request.params?.name;
