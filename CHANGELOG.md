@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0-connect.4 - 2026-08-24
+
+- Add the npm-packaged Grok Build and AGY MCP adapters to the synchronized Agent Intercom family documentation.
+- Document their polling-only delivery model and shared Claude MCP runtime.
+
 ## 0.13.0-connect.3 - 2026-08-23
 
 - Add complete OpenAI MCP annotations for all nine Intercom tools and verify their exact semantics in tests.

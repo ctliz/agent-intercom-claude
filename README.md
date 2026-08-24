@@ -1,6 +1,6 @@
 # Claude Intercom
 
-**Agent Intercom** is a cross-harness, same-machine messaging system for coding agents. Its Pi, Codex, Claude Code, and OpenCode adapters share one local broker and protocol, so sessions can discover and message each other regardless of which harness they run in.
+**Agent Intercom** is a cross-harness, same-machine messaging system for coding agents. Its Pi, Codex, Claude Code, OpenCode, Grok Build, and AGY adapters share one local broker and protocol, so sessions can discover and message each other regardless of which harness they run in.
 
 | Harness | Repository |
 |---|---|
@@ -9,7 +9,11 @@
 | Codex | [`agent-intercom-codex`](https://github.com/ctliz/agent-intercom-codex) |
 | Claude Code | [`agent-intercom-claude`](https://github.com/ctliz/agent-intercom-claude) |
 | OpenCode | [`agent-intercom-opencode`](https://github.com/ctliz/agent-intercom-opencode) |
+| Grok Build | [`agent-intercom-grok`](https://github.com/ctliz/agent-intercom-grok) |
+| AGY | [`agent-intercom-agy`](https://github.com/ctliz/agent-intercom-agy) |
 | Fleet lifecycle | [`agent-intercom-orchestrator`](https://github.com/ctliz/agent-intercom-orchestrator) |
+
+Grok Build and AGY use lightweight npm-packaged MCP launchers backed by this Claude MCP runtime. They retain inbound messages for `intercom_pending` polling but do not provide wake-on-message.
 
 ## Maintenance & Upstream Provenance
 
@@ -97,13 +101,13 @@ Install via npm using the `connect` dist-tag:
 ```bash
 npm install -g @ctliz/agent-intercom-claude@connect
 # or by exact prerelease version
-npm install -g @ctliz/agent-intercom-claude@0.12.0-connect.3
+npm install -g @ctliz/agent-intercom-claude@0.13.0-connect.4
 ```
 
 Or install from GitHub source at the exact tag so the command-line entry points are on `PATH`:
 
 ```bash
-git clone --depth 1 --branch v0.12.0-connect.3 https://github.com/ctliz/agent-intercom-claude.git
+git clone --depth 1 --branch v0.13.0-connect.4 https://github.com/ctliz/agent-intercom-claude.git
 cd agent-intercom-claude && npm ci && npm link
 ```
 
@@ -151,7 +155,9 @@ With `--transport mcp`, `cci` does this automatically for each normal headless w
 
 ### Other stdio MCP hosts
 
-The `claude-intercom-mcp` executable is a standard stdio MCP server, so Grok Build, AGY, and other compatible local hosts can use it without installing the Claude Code plugin. An npm/global installation provides that executable; for a source checkout, configure `node` with the absolute path to `dist/claude-server.mjs`. Node 20+ is required.
+The `claude-intercom-mcp` executable is a standard stdio MCP server. Grok Build and AGY can use the dedicated `@ctliz/agent-intercom-grok` and `@ctliz/agent-intercom-agy` packages, which install host-specific launchers backed by this runtime. For a source checkout, configure `node` with the absolute path to `dist/claude-server.mjs`. Node 22.19+ is required.
+
+Install the host packages with `npm install -g @ctliz/agent-intercom-grok` or `npm install -g @ctliz/agent-intercom-agy`, then install their GitHub plugin at the matching release tag.
 
 Use `AGENT_INTERCOM_SESSION_ID` and `AGENT_INTERCOM_SESSION_NAME` for a host-neutral identity; `CLAUDE_INTERCOM_SESSION_ID` and `CLAUDE_INTERCOM_NAME` remain higher-priority compatibility aliases. Do not share a fixed session ID between concurrent host sessions.
 
