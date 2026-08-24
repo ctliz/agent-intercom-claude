@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0-connect.6 - 2026-08-24
+
+- Synchronize companion install pins with the final systemd-validated Orchestrator release.
+
 ## 0.13.0-connect.5 - 2026-08-24
 
 - Synchronize companion Pi and Orchestrator install pins with their final Grok/AGY documentation release.
