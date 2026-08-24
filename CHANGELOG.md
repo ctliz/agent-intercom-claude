@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0-connect.7 - 2026-08-24
+
+- Synchronize companion install pins with the hosted-CI-validated Orchestrator release.
+
 ## 0.13.0-connect.6 - 2026-08-24
 
 - Synchronize companion install pins with the final systemd-validated Orchestrator release.
