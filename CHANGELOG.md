@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.0-connect.5 - 2026-08-24
+
+- Synchronize companion Pi and Orchestrator install pins with their final Grok/AGY documentation release.
+
 ## 0.13.0-connect.4 - 2026-08-24
 
 - Add the npm-packaged Grok Build and AGY MCP adapters to the synchronized Agent Intercom family documentation.
