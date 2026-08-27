@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0-connect.8 - 2026-08-24
+
+- Document Grok Build and AGY support in detail on the npm package page, including packages, tools, identity, shared scope, Auto-Team participation, and polling-only delivery.
+- Add Grok Build and AGY to npm search metadata and clarify that their dedicated launchers load the Claude MCP runtime without a separate `claude-intercom-mcp` installation.
+
 ## 0.13.0-connect.7 - 2026-08-24
 
 - Synchronize companion install pins with the hosted-CI-validated Orchestrator release.

@@ -1,7 +1,7 @@
 {
   "name": "@ctliz/agent-intercom-claude",
-  "version": "0.13.0-connect.7",
-  "description": "Claude Code MCP plugin and wakeable worker for direct local messaging with Pi, Codex, and Claude coding-agent sessions.",
+  "version": "0.13.0-connect.8",
+  "description": "Claude Code MCP plugin and wakeable worker for local messaging with Pi, Codex, OpenCode, Grok Build, and AGY agents.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "main": "dist/claude-server.mjs",
@@ -64,7 +64,11 @@
     "intercom",
     "multi-agent",
     "pi",
-    "codex"
+    "codex",
+    "opencode",
+    "grok",
+    "grok-build",
+    "agy"
   ],
   "peerDependencies": {
     "@ctliz/agent-intercom-core": "0.2.0"
