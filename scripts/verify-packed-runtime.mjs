@@ -120,7 +120,9 @@ try {
   if (typeof plugin.commands !== "string") throw new Error("plugin.json missing commands declaration");
   const commandEntry1 = entries.get("package/commands/intercom.md");
   const commandEntry2 = entries.get("package/commands/intercom-id.md");
-  if (!commandEntry1 || !commandEntry2) throw new Error("Packed adapter missing commands markdown files");
+  const commandEntry3 = entries.get("package/commands/intercom-create.md");
+  const commandEntry4 = entries.get("package/commands/intercom-join.md");
+  if (!commandEntry1 || !commandEntry2 || !commandEntry3 || !commandEntry4) throw new Error("Packed adapter missing commands markdown files");
 
   // 5. Assert all dist bundles exist and adhere to Core externalization
   for (const bundle of bundles) {

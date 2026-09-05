@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+## 0.13.0-connect.9 - 2026-09-06
+
+- Add `intercom_join` so Claude sessions can create or join a named team without tmux. `/intercom-create` and `/intercom-join` call the same tool. Named teams share `~/.pi/agent/intercom/named-teams.json` with Pi, Codex, and OpenCode.
+
 ## 0.13.0-connect.8 - 2026-08-24
 
 - Document Grok Build and AGY support in detail on the npm package page, including packages, tools, identity, shared scope, Auto-Team participation, and polling-only delivery.

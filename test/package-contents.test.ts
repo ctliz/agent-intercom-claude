@@ -82,4 +82,6 @@ test("package manifest and plugin definition maintain consistent MCP, monitors, 
   assert.ok(existsSync(new URL("skills/claude-intercom/SKILL.md", repositoryRoot)));
   assert.ok(existsSync(new URL("commands/intercom.md", repositoryRoot)));
   assert.ok(existsSync(new URL("commands/intercom-id.md", repositoryRoot)));
+  assert.ok(existsSync(new URL("commands/intercom-create.md", repositoryRoot)));
+  assert.ok(existsSync(new URL("commands/intercom-join.md", repositoryRoot)));
 });

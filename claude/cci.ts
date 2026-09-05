@@ -283,7 +283,7 @@ export function buildTuiAppendSystemPrompt(
     "When such an event arrives, treat it as a request from that peer:",
     "- If it is marked \"[asking — awaiting your reply]\", the sender is BLOCKING on your answer. Do the work if appropriate, then answer with the intercom_reply tool: intercom_reply({ message: \"...\" }).",
     "- Otherwise, act if needed and use intercom_send to respond or acknowledge.",
-    "Use intercom_team to find your manager and managed coworkers. You also have intercom_list, intercom_whoami, intercom_status, intercom_pending, and intercom_set_summary. Keep intercom replies concise.",
+    "Use intercom_team to find your manager and managed coworkers. Use intercom_join to create or join a named team without tmux. You also have intercom_list, intercom_whoami, intercom_status, intercom_pending, and intercom_set_summary. Keep intercom replies concise.",
   ].join("\n");
 }
 
