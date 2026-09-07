@@ -129,13 +129,13 @@ Install via npm using the `connect` dist-tag:
 ```bash
 npm install -g @ctliz/agent-intercom-claude@connect
 # or by exact prerelease version
-npm install -g @ctliz/agent-intercom-claude@0.13.0-connect.9
+npm install -g @ctliz/agent-intercom-claude@0.13.1
 ```
 
 Or install from GitHub source at the exact tag so the command-line entry points are on `PATH`:
 
 ```bash
-git clone --depth 1 --branch v0.13.0-connect.9 https://github.com/ctliz/agent-intercom-claude.git
+git clone --depth 1 --branch v0.13.1 https://github.com/ctliz/agent-intercom-claude.git
 cd agent-intercom-claude && npm ci && npm link
 ```
 
@@ -149,7 +149,7 @@ This provides:
 To let a Pi manager create Claude workers with owned systemd cgroups, leases, model/effort selection, logs, and verified cleanup, install the companion Pi packages:
 
 ```bash
-pi install git:github.com/ctliz/agent-intercom-pi@v0.12.0-connect.9
+pi install git:github.com/ctliz/agent-intercom-pi@v0.12.2
 pi install git:github.com/ctliz/agent-intercom-orchestrator@v0.12.0-connect.5
 ```
 
