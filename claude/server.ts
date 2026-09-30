@@ -14,7 +14,8 @@ const report = (error: unknown) => {
   process.stderr.write(`claude-intercom: ${error instanceof Error ? error.message : String(error)}\n`);
 };
 
-const runtimeReady = (async () => {
+// Companion MCP launchers await this same owner to synchronize native titles.
+export const runtimeReady = (async () => {
   const host = findClaudeHost();
   const reader = host ? new ClaudeSessionReader(claudeSessionMetadataPath(host), host) : undefined;
   const metadata = reader ? await waitForClaudeSession(reader) : undefined;

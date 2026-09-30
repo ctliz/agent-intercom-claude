@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.14.1 - 2026-09-30
+
+- Expose the existing MCP owner's `runtimeReady` promise to companion Grok/AGY launchers so native identity and title updates use `syncSession` without opening a competing broker connection.
+
 ## 0.14.0 - 2026-09-30
 
 - Register ordinary MCP launches before the first prompt/tool call; packaged SessionStart/SessionEnd hooks synchronize native conversation identity without creating a competing broker connection.

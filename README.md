@@ -185,18 +185,16 @@ With `--transport mcp`, `cci` does this automatically for each normal headless w
 
 The `claude-intercom-mcp` executable is a standard stdio MCP server, but Grok Build and AGY should normally use the dedicated `@ctliz/agent-intercom-grok` and `@ctliz/agent-intercom-agy` packages. Those packages install `agent-intercom-grok-mcp` and `agent-intercom-agy-mcp`, depend on this package, and load its runtime internally. A separate global `claude-intercom-mcp` installation is not required. For a source-only checkout, configure `node` with the absolute path to `dist/claude-server.mjs`. Node 22.19+ is required.
 
-Install the matching host package globally, then install its GitHub plugin at the matching release tag.
+Install the matching host package globally, then install its GitHub plugin at the matching release tag. Companion launchers may await the exported `runtimeReady` promise from `dist/claude-server.mjs` and call `syncSession({ ...runtime.getIdentity(), name })` on that same runtime. This entry starts MCP stdio; do not create a second broker client to synchronize a host title.
 
 Use `AGENT_INTERCOM_SESSION_ID` and `AGENT_INTERCOM_SESSION_NAME` for a host-neutral identity; `CLAUDE_INTERCOM_SESSION_ID` and `CLAUDE_INTERCOM_NAME` remain higher-priority compatibility aliases. Do not share a fixed session ID between concurrent host sessions.
 
 A plain MCP host is connected only while its MCP process is alive. Incoming Intercom messages are durable and appear through `intercom_pending`, but this server cannot itself inject a new prompt into Grok or AGY. Use `intercom_send` plus `intercom_pending` for manual-polling workflows; a host-specific relay is required for wake-on-message.
 
-For Grok Build, register the server and use a unique static ID for an individual long-lived probe or worker:
+For Grok Build, register the dedicated launcher without a fixed identity. It uses Grok's native `GROK_SESSION_ID` when available and synchronizes the exact session's persisted title:
 
 ```bash
 grok mcp add agent-intercom \
-  -e AGENT_INTERCOM_SESSION_ID=grok-probe-01 \
-  -e AGENT_INTERCOM_SESSION_NAME=grok-probe \
   -e CLAUDE_INTERCOM_MODEL=grok-build \
   -- agent-intercom-grok-mcp
 ```
@@ -209,8 +207,6 @@ For AGY, add the equivalent entry to `~/.gemini/config/mcp_config.json`:
     "agent-intercom": {
       "command": "agent-intercom-agy-mcp",
       "env": {
-        "AGENT_INTERCOM_SESSION_ID": "agy-probe-01",
-        "AGENT_INTERCOM_SESSION_NAME": "agy-probe",
         "CLAUDE_INTERCOM_MODEL": "agy"
       }
     }
@@ -218,7 +214,7 @@ For AGY, add the equivalent entry to `~/.gemini/config/mcp_config.json`:
 }
 ```
 
-Both hosts must use the same `AGENT_INTERCOM_SCOPE_ID` as their intended peers, or leave it unset for the default local scope. Call `intercom_whoami` once after startup, then use `intercom_list`, `intercom_send`, and `intercom_pending` to verify delivery.
+Both hosts must use the same `AGENT_INTERCOM_SCOPE_ID` as their intended peers, or leave it unset for the default local scope. Their persistent MCP server registers eagerly, without a first prompt or tool call. AGY's optional native metadata publisher is described in its package README. Use `intercom_whoami`, `intercom_list`, `intercom_send`, and `intercom_pending` to verify identity and delivery.
 
 Optional identity variables can be attached at registration time:
 
