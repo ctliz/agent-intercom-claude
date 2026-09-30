@@ -6,7 +6,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 import { basename } from "node:path";
-import { formatInboxLine, inboxBatchFrom } from "./inbox.ts";
+import { defaultInboxPath, formatInboxLine, inboxBatchFrom } from "./inbox.ts";
+import {
+  ClaudeSessionReader, claudeIdentityForSession, claudeSessionMetadataPath,
+  findClaudeHost, waitForClaudeSession,
+} from "./session-lifecycle.ts";
 
 const POLL_MS = 1000;
 
@@ -18,12 +22,24 @@ function readContent(path: string): string {
   }
 }
 
-export async function runInboxMonitor(path: string, signal?: { aborted: boolean }): Promise<void> {
-  // Start after the current backlog so only new messages are surfaced.
-  let emitted = inboxBatchFrom(readContent(path), 0).total;
+type InboxSource = string | (() => { path: string; startedAt?: number });
+
+export async function runInboxMonitor(source: InboxSource, signal?: { aborted: boolean }): Promise<void> {
+  let path = "";
+  let emitted = 0;
   for (;;) {
     if (signal?.aborted) return;
-    const { entries, total } = inboxBatchFrom(readContent(path), emitted);
+    const next = typeof source === "string" ? { path: source } : source();
+    const content = readContent(next.path);
+    if (path !== next.path) {
+      path = next.path;
+      const backlog = inboxBatchFrom(content, 0);
+      // Skip old history, not messages received after SessionStart but before
+      // Monitor startup. A resumed/cleared conversation gets its own cutoff.
+      emitted = next.startedAt === undefined ? backlog.total
+        : backlog.entries.filter((entry) => entry.ts < next.startedAt!).length;
+    }
+    const { entries, total } = inboxBatchFrom(content, emitted);
     for (const entry of entries) {
       process.stdout.write(`${formatInboxLine(entry)}\n`);
     }
@@ -33,12 +49,20 @@ export async function runInboxMonitor(path: string, signal?: { aborted: boolean 
 }
 
 async function main(): Promise<void> {
-  const path = process.env.CLAUDE_INTERCOM_INBOX || process.argv[2];
-  if (!path) {
-    process.stderr.write("inbox-monitor: no inbox path (set CLAUDE_INTERCOM_INBOX or pass a path)\n");
-    process.exit(1);
+  const explicitPath = process.env.CLAUDE_INTERCOM_INBOX || process.argv[2];
+  const host = findClaudeHost();
+  if (!host) {
+    if (!explicitPath) throw new Error("Cannot determine this Claude session's inbox");
+    await runInboxMonitor(explicitPath);
+    return;
   }
-  await runInboxMonitor(path);
+  const reader = new ClaudeSessionReader(claudeSessionMetadataPath(host), host);
+  await waitForClaudeSession(reader);
+  await runInboxMonitor(() => {
+    const metadata = reader.read();
+    const identity = claudeIdentityForSession(metadata, process.env, host.pid);
+    return { path: explicitPath || defaultInboxPath(identity.sessionId), startedAt: metadata?.startedAt };
+  });
 }
 
 if (process.argv[1] && (basename(process.argv[1]) === "inbox-monitor.ts" || basename(process.argv[1]) === "inbox-monitor.mjs")) {

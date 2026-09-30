@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { ChildProcess } from "node:child_process";
@@ -99,6 +99,27 @@ test("writeDefaultWorkerMcpConfig exposes the packaged intercom server to headle
     const parsed = JSON.parse(await readFile(path, "utf8"));
     assert.deepEqual(parsed, { mcpServers: { "claude-intercom": { command: process.execPath, args: [serverPath] } } });
   } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("live launcher forwards the Intercom name to Claude's native --name flag", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "claude-cci-name-"));
+  const command = join(temp, "fake-claude");
+  const record = join(temp, "args.json");
+  await writeFile(command, `#!${process.execPath}\nimport fs from 'node:fs';\nif (process.argv.includes('--version')) console.log('2.1.285 (Claude Code)');\nelse fs.writeFileSync(${JSON.stringify(record)}, JSON.stringify(process.argv.slice(2)));\n`);
+  await chmod(command, 0o755);
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = temp;
+  try {
+    const options = parseCciArgs(["--tui", "--transport", "mcp", "--name", "reviewer", "--id", "cci-name-test", "--claude", command, "--cwd", temp], {});
+    assert.equal(await runCci(options), 0);
+    const args = JSON.parse(await readFile(record, "utf8"));
+    assert.equal(args[args.indexOf("--name") + 1], "reviewer");
+    assert.ok(args.includes("--plugin-dir"));
+  } finally {
+    if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previous;
     await rm(temp, { recursive: true, force: true });
   }
 });

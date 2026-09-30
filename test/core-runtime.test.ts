@@ -12,6 +12,8 @@ const coreConsumers = new Set([
   "ccim.mjs",
   "claude-server.mjs",
   "worker-daemon.mjs",
+  "inbox-monitor.mjs",
+  "session-hook.mjs",
 ]);
 
 function assertExternalCore(bundleName: string, source: string): void {
@@ -50,7 +52,7 @@ test("source and every built bundle use Core only through the runtime peer", () 
 
   const distDir = join(repositoryRoot, "dist");
   const bundles = readdirSync(distDir).filter((file) => file.endsWith(".mjs"));
-  assert.deepEqual(new Set(bundles), new Set([...coreConsumers, "inbox-monitor.mjs"]));
+  assert.deepEqual(new Set(bundles), coreConsumers);
   for (const bundle of bundles) {
     assertExternalCore(bundle, readFileSync(join(distDir, bundle), "utf8"));
   }

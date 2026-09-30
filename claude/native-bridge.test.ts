@@ -12,6 +12,7 @@ import {
   buildNativeEnvelope,
   buildNativeUserFrame,
   sendNativeFrame,
+  nativePeerNameBySocket,
 } from "./native-protocol.ts";
 
 class FakeClient extends EventEmitter {
@@ -19,11 +20,15 @@ class FakeClient extends EventEmitter {
   acknowledgements: string[] = [];
   sends: Array<{ to: string; message: { text: string; replyTo?: string } }> = [];
   statuses: string[] = [];
+  names: string[] = [];
 
   async connect(_registration: unknown, sessionId?: string): Promise<void> { this.sessionId = sessionId ?? "bridge"; }
   async disconnect(): Promise<void> { this.sessionId = null; }
   acknowledgeMessage(id: string): void { this.acknowledgements.push(id); }
-  updatePresence(update: { status?: string }): void { if (update.status) this.statuses.push(update.status); }
+  updatePresence(update: { name?: string; status?: string }): void {
+    if (update.status) this.statuses.push(update.status);
+    if (update.name) this.names.push(update.name);
+  }
   async send(to: string, message: { text: string; replyTo?: string }): Promise<{ delivered: boolean }> {
     this.sends.push({ to, message });
     this.emit("sent");
@@ -83,6 +88,12 @@ test("native bridge injects broker messages and correlates Claude replies", asyn
       }));
     });
     await bridge.start(targetSocket);
+    await bridge.syncName("Renamed worker");
+    await bridge.syncName("Renamed worker");
+    await bridge.syncName(" ");
+    assert.deepEqual(client.names, ["Renamed worker"]);
+    assert.equal(client.sessionId, "claude-worker");
+    assert.equal(nativePeerNameBySocket(bridge.nativeSocketPath, registryDir), "Renamed worker bridge");
     client.emit("message", sender, ask, "delivery-1");
     await once(client, "sent");
 

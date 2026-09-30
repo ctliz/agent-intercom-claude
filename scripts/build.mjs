@@ -48,6 +48,12 @@ const buildResults = await Promise.all([
   }),
   build({
     ...common,
+    entryPoints: ["claude/session-hook.ts"],
+    outfile: "dist/session-hook.mjs",
+    banner: { js: "#!/usr/bin/env node" },
+  }),
+  build({
+    ...common,
     entryPoints: ["claude/inbox-monitor.ts"],
     outfile: "dist/inbox-monitor.mjs",
     banner: { js: "#!/usr/bin/env node" },
@@ -68,4 +74,5 @@ await Promise.all([
   chmod("dist/cci.mjs", 0o755),
   chmod("dist/ccim.mjs", 0o755),
   chmod("dist/inbox-monitor.mjs", 0o755),
+  chmod("dist/session-hook.mjs", 0o755),
 ]);

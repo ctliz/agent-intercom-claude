@@ -36,7 +36,7 @@ interface NativeBridgeClient {
   disconnect(): Promise<void>;
   acknowledgeMessage(deliveryId: string): void;
   send(to: string, message: { text: string; replyTo?: string }): Promise<{ delivered: boolean; reason?: string }>;
-  updatePresence(update: { status?: string }): void;
+  updatePresence(update: { name?: string; status?: string }): void;
 }
 
 export interface NativeClaudeBridgeIdentity {
@@ -151,6 +151,13 @@ export class NativeClaudeBrokerBridge {
       status: "idle",
     }, this.identity.id);
     this.started = true;
+  }
+
+  async syncName(name: string): Promise<void> {
+    if (!this.started || !name.trim() || name === this.identity.name) return;
+    this.identity.name = name;
+    this.client.updatePresence({ name });
+    await updateNativeClaudePeer(this.pid, { name: `${name} bridge` }, this.options.registryDir);
   }
 
   private async handleBrokerMessage(from: SessionInfo, message: Message, deliveryId: string): Promise<void> {

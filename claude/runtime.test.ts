@@ -22,9 +22,13 @@ class FakeIntercomClient extends EventEmitter {
   connectCount = 0;
   acknowledgements: string[] = [];
   sessionId: string | null = null;
+  presences: Array<{ name?: string; model?: string }> = [];
+  registrations: Array<{ name?: string }> = [];
 
+  updatePresence(presence: { name?: string; model?: string }): void { this.presences.push(presence); }
   isConnected(): boolean { return this.connected; }
-  async connect(_registration: unknown, sessionId?: string): Promise<void> {
+  async connect(registration: { name?: string }, sessionId?: string): Promise<void> {
+    this.registrations.push(registration);
     this.connected = true;
     this.connectCount += 1;
     this.sessionId = sessionId ?? "fake-session";
@@ -34,6 +38,9 @@ class FakeIntercomClient extends EventEmitter {
     this.sessionId = null;
   }
   acknowledgeMessage(deliveryId: string): void { this.acknowledgements.push(deliveryId); }
+  async listSessions(): Promise<SessionInfo[]> { return [session({ id: "peer", name: "peer" })]; }
+  async send(): Promise<{ delivered: boolean; id: string }> { return { delivered: true, id: "ask-1" }; }
+  async cancelAsk(): Promise<void> {}
   drop(): void {
     this.connected = false;
     this.sessionId = null;
@@ -200,6 +207,89 @@ test("runtime reconnects automatically after the broker connection drops", async
   assert.equal(second.connectCount, 1);
   assert.equal(second.sessionId, "reconnect-claude");
   await runtime.disconnect();
+});
+
+test("rename updates presence in place and reconnect keeps the latest name", async () => {
+  const first = new FakeIntercomClient();
+  const second = new FakeIntercomClient();
+  const clients = [first, second];
+  const identity = { sessionId: "claude-rename", name: "original", cwd: "/tmp", model: "test", startedAt: 1 };
+  const runtime = new ClaudeIntercomRuntime(identity, {
+    prepareConnection: async () => {}, reconnectDelays: [1],
+    clientFactory: () => clients.shift() as unknown as IntercomClient,
+  });
+  try {
+    await runtime.connect();
+    await runtime.syncSession({ ...identity, name: "reviewer" });
+    assert.equal(first.connectCount, 1);
+    assert.equal(first.sessionId, identity.sessionId);
+    assert.deepEqual(first.presences, [{ name: "reviewer", model: "test" }]);
+    first.drop();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(second.registrations[0]?.name, "reviewer");
+    assert.equal(second.sessionId, identity.sessionId);
+  } finally { await runtime.disconnect(); }
+});
+
+test("a new conversation releases the old identity before registering the replacement", async () => {
+  const first = new FakeIntercomClient();
+  const second = new FakeIntercomClient();
+  const clients = [first, second];
+  const identity = { sessionId: "claude-old", name: "old", cwd: "/tmp", model: "test", startedAt: 1 };
+  const runtime = new ClaudeIntercomRuntime(identity, {
+    prepareConnection: async () => {}, clientFactory: () => clients.shift() as unknown as IntercomClient,
+  });
+  try {
+    await runtime.connect();
+    await runtime.syncSession({ ...identity, sessionId: "claude-new", name: "new" });
+    assert.equal(first.connected, false);
+    assert.equal(second.sessionId, "claude-new");
+    assert.equal(second.connectCount, 1);
+  } finally { await runtime.disconnect(); }
+});
+
+test("SessionEnd rejects pending asks instead of leaving old timers in the replacement session", async () => {
+  const client = new FakeIntercomClient();
+  const runtime = new ClaudeIntercomRuntime({
+    sessionId: "claude-ending", name: "ending", cwd: "/tmp", model: "test", startedAt: 1,
+  }, { prepareConnection: async () => {}, clientFactory: () => client as unknown as IntercomClient });
+  try {
+    const pending = runtime.ask("peer", "question");
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    await runtime.disconnect();
+    const result = await pending;
+    assert.equal(result.isError, true);
+    assert.match(result.content[0]!.text, /disconnected while waiting for reply/);
+  } finally { await runtime.disconnect(); }
+});
+
+test("duplicate identity pauses reconnect, reports the broker code, and never steals ownership", async () => {
+  let attempts = 0;
+  const runtime = new ClaudeIntercomRuntime({
+    sessionId: "incumbent", name: "contender", cwd: "/tmp", model: "test", startedAt: 1,
+  }, {
+    prepareConnection: async () => {}, reconnectDelays: [1],
+    clientFactory: () => {
+      attempts++;
+      const client = new FakeIntercomClient();
+      client.connect = async () => {
+        const conflict = Object.assign(new Error("same session another runtime"), { code: "SESSION_ID_IN_USE" });
+        throw new Error("Intercom protocol error", { cause: new Error("Failed to handle message", { cause: conflict }) });
+      };
+      return client as unknown as IntercomClient;
+    },
+  });
+  try {
+    await assert.rejects(runtime.connect(), /Intercom protocol error/);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const status = await runtime.status();
+    assert.equal(status.isError, true);
+    assert.deepEqual(status.structuredContent?.registration_conflict, {
+      code: "SESSION_ID_IN_USE", message: "same session another runtime",
+    });
+    await assert.rejects(runtime.connect(), /same session another runtime/);
+    assert.equal(attempts, 1);
+  } finally { await runtime.disconnect(); }
 });
 
 test("runtime join creates a named team and switches captured scope", async () => {

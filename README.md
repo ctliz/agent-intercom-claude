@@ -375,6 +375,40 @@ Choose explicitly with `--transport native` or `--transport mcp`, or set `CLAUDE
 
 `--minimal` is ignored in live TUI mode. The native path requires an interactive Claude process that publishes its local messaging socket. The MCP path additionally needs a built checkout (`npm run build`) and an available Monitor feature; Monitor is unavailable when `DISABLE_TELEMETRY` or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` is set, or on Bedrock/Vertex/Foundry. Both paths remain local and work behind a custom `ANTHROPIC_BASE_URL`/proxy. See [docs/wake-mechanisms.md](docs/wake-mechanisms.md).
 
+### Startup registration and native session names
+
+The MCP server now registers as soon as it starts, without waiting for a prompt
+or an Intercom tool call. Bare MCP configuration provides discovery and queued
+messages; load the packaged plugin for hooks and automatic Monitor delivery:
+
+```bash
+claude --plugin-dir /path/to/agent-intercom-claude --name reviewer
+```
+
+On macOS/Linux, the plugin's `SessionStart`/`SessionEnd` hooks publish private
+metadata only. The persistent MCP server is the **only** broker connection.
+Without a launcher-provided ID, Intercom uses `claude-<native-session-id>`, so
+resuming a conversation preserves its target and `/clear` releases the old
+conversation before registering the new one. Explicit Claude/generic launcher
+IDs retain their existing precedence.
+
+`cci --tui --name reviewer` also passes Claude's native `--name` flag. `/rename`
+updates broker presence without changing the stable ID. MCP mode incrementally
+tails only native `custom-title` transcript records; it never replaces your
+statusline configuration. Native mode follows the verified socket registry's
+name. The native transport version gate remains **2.1.220–2.1.226**; Claude
+2.1.285 was smoke-tested through MCP, not added to that gate.
+
+The Monitor skips historical inbox entries but retains messages that arrived
+after `SessionStart`, even if they preceded Monitor startup. Unsupported host
+process discovery falls back to eager MCP registration and explicit launcher
+identity/inbox settings, as used by `cci`.
+
+Enable Intercom once per Claude process: loading the plugin and a second manual
+MCP entry for the same identity creates competing runtimes. `SESSION_ID_IN_USE`
+leaves the incumbent authoritative, pauses automatic retries, and is exposed by
+`intercom_status`. Do not share a fixed launcher ID between concurrent sessions.
+
 ## Normal And Minimal Workers
 
 Like Codex's `coi` (normal) and `coim` (minimal), `cci` has a minimal mode. Codex

@@ -248,7 +248,7 @@ export async function handleMcpRequest(request: JsonRpcRequest, runtime: ClaudeI
       return ok(request.id, {
         protocolVersion: "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "claude-intercom", version: "0.1.0" },
+        serverInfo: { name: "claude-intercom", version: "0.14.0" },
       });
     case "ping":
       return ok(request.id, {});

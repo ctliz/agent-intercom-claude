@@ -21,7 +21,7 @@ import {
   type ResolvedClaudeIntercomTransport,
 } from "./transport.ts";
 import { NativeClaudeBrokerBridge } from "./native-bridge.ts";
-import { waitForNativeClaudePeer } from "./native-protocol.ts";
+import { nativePeerNameBySocket, waitForNativeClaudePeer } from "./native-protocol.ts";
 import { INTERCOM_SCOPE_ENV, intercomScopeIdFromEnvForRegistration } from "../protocol-v4/contract.ts";
 
 export interface CciOptions {
@@ -325,7 +325,7 @@ async function runCciTui(options: CciOptions, id: string, name: string, scopeId:
     rmSync(inboxPath, { force: true }); // fresh session: only surface messages that arrive from now on
   }
 
-  const args: string[] = ["--append-system-prompt", buildTuiAppendSystemPrompt(name, id, resolution.selected)];
+  const args: string[] = ["--name", name, "--append-system-prompt", buildTuiAppendSystemPrompt(name, id, resolution.selected)];
   if (resolution.selected === "mcp") args.unshift("--plugin-dir", root);
   const permission = resolveClaudePermissionPolicy(options);
   if (options.model) args.push("--model", options.model);
@@ -354,12 +354,21 @@ async function runCciTui(options: CciOptions, id: string, name: string, scopeId:
     },
   });
   let bridge: NativeClaudeBrokerBridge | undefined;
+  let nativeNameTimer: NodeJS.Timeout | undefined;
+  let nativeNameSync = Promise.resolve();
   if (resolution.selected === "native") {
     try {
       if (!child.pid) throw new Error("Claude started without a process id; native transport cannot attach");
       const peer = await waitForNativeClaudePeer(child.pid);
       bridge = new NativeClaudeBrokerBridge({ id, name, cwd: options.cwd, model: options.model }, { scopeId });
       await bridge.start(peer.socketPath);
+      nativeNameTimer = setInterval(() => {
+        const name = nativePeerNameBySocket(peer.socketPath);
+        if (name) nativeNameSync = nativeNameSync.then(() => bridge!.syncName(name)).catch((error) => {
+          process.stderr.write(`cci: native name sync failed: ${error instanceof Error ? error.message : String(error)}\n`);
+        });
+      }, 1000);
+      nativeNameTimer.unref();
     } catch (error) {
       child.kill("SIGTERM");
       await waitForChildExit(child).catch(() => undefined);
@@ -370,6 +379,8 @@ async function runCciTui(options: CciOptions, id: string, name: string, scopeId:
     }
   }
   const [code, signal] = await waitForChildExit(child);
+  clearInterval(nativeNameTimer);
+  await nativeNameSync;
   await bridge?.stop();
   if (resolution.selected === "mcp") rmSync(inboxPath, { force: true });
   if (typeof code === "number") return code;

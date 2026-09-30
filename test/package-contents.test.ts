@@ -47,6 +47,12 @@ test("package manifest and plugin definition maintain consistent MCP, monitors, 
   assert.ok(manifest.files.includes(".claude-plugin/**/*"));
   assert.ok(manifest.files.includes(".mcp.json"));
   assert.ok(manifest.files.includes("monitors/**/*"));
+  assert.ok(manifest.files.includes("hooks/**/*"));
+  const hooks = JSON.parse(readFileSync(new URL("hooks/hooks.json", repositoryRoot), "utf8")).hooks;
+  for (const event of ["SessionStart", "SessionEnd"]) {
+    assert.match(hooks[event][0].hooks[0].command, /dist\/session-hook\.mjs/);
+  }
+  // Claude auto-discovers hooks/hooks.json; explicitly declaring it would run twice.
   assert.ok(manifest.files.includes("skills/**/*"));
   assert.ok(manifest.files.includes("commands/**/*"));
   assert.ok(manifest.files.includes("dist/**/*"));

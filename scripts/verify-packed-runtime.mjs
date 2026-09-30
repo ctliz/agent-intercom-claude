@@ -13,8 +13,10 @@ const coreConsumers = new Set([
   "ccim.mjs",
   "claude-server.mjs",
   "worker-daemon.mjs",
+  "session-hook.mjs",
+  "inbox-monitor.mjs",
 ]);
-const bundles = [...coreConsumers, "inbox-monitor.mjs"];
+const bundles = [...coreConsumers];
 
 function tarString(buffer, offset, length) {
   const end = buffer.indexOf(0, offset);
@@ -110,6 +112,15 @@ try {
   const inboxMonitor = monitorsConfig.find((m) => m.name === "intercom-inbox");
   if (!inboxMonitor || !inboxMonitor.command?.includes("/dist/inbox-monitor.mjs")) {
     throw new Error(`monitors.json missing intercom-inbox command referencing dist/inbox-monitor.mjs: ${JSON.stringify(inboxMonitor)}`);
+  }
+
+  const hooksEntry = entries.get("package/hooks/hooks.json");
+  if (!hooksEntry) throw new Error("Packed adapter is missing hooks/hooks.json");
+  const hooks = JSON.parse(hooksEntry.toString("utf8")).hooks;
+  for (const event of ["SessionStart", "SessionEnd"]) {
+    if (!hooks?.[event]?.[0]?.hooks?.[0]?.command?.includes("/dist/session-hook.mjs")) {
+      throw new Error(`Packed ${event} hook does not reference session-hook.mjs`);
+    }
   }
 
   // 4. Assert Plugin -> Skills & Commands exist in packed archive

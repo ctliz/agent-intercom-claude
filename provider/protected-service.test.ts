@@ -38,6 +38,7 @@ const ordinaryDistNames = [
   "ccim.mjs",
   "claude-server.mjs",
   "inbox-monitor.mjs",
+  "session-hook.mjs",
   "worker-daemon.mjs",
 ];
 

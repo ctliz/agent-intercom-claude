@@ -6,7 +6,7 @@ import { IntercomClient } from "../broker/client.ts";
 import { intercomScopeIdFromEnvForRegistration } from "../protocol-v4/contract.ts";
 import { spawnBrokerIfNeeded } from "../broker/spawn.ts";
 import { getAskTimeoutMs, loadConfig } from "../config.ts";
-import { appendInboxMessage } from "./inbox.ts";
+import { appendInboxMessage, defaultInboxPath } from "./inbox.ts";
 import type { Attachment, Message, SessionInfo } from "../types.ts";
 import { formatIntercomTeam, resolveIntercomTeam } from "./team.ts";
 import {
@@ -219,6 +219,7 @@ export class ClaudeIntercomRuntime {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private reconnectAttempt = 0;
   private reconnectEnabled = true;
+  private registrationConflict: Error | null = null;
   private identity: ClaudeRuntimeIdentity;
   private unread: PendingInboundMessage[] = [];
   private unresolvedAsks = new Map<string, PendingInboundMessage>();
@@ -251,7 +252,37 @@ export class ClaudeIntercomRuntime {
     return this.identity;
   }
 
+  async syncSession(identity: ClaudeRuntimeIdentity): Promise<void> {
+    const changed = identity.sessionId !== this.identity.sessionId || identity.cwd !== this.identity.cwd;
+    if (changed) {
+      await this.disconnect();
+      this.unread = [];
+      this.unresolvedAsks.clear();
+      this.registrationConflict = null;
+    }
+    const renamed = identity.name !== this.identity.name;
+    const modelChanged = identity.model !== this.identity.model;
+    this.identity = identity;
+    if (changed) await this.connect();
+    else if (renamed || modelChanged) this.client?.updatePresence({ name: identity.name, model: identity.model });
+  }
+
+  private pauseOnRegistrationConflict(error: unknown): boolean {
+    // Framing/client wrappers preserve the broker error as an Error.cause.
+    let cause = error;
+    for (let depth = 0; cause instanceof Error && depth < 8; depth++, cause = cause.cause) {
+      if ((cause as Error & { code?: string }).code === "SESSION_ID_IN_USE") {
+        this.registrationConflict = cause;
+        this.reconnectEnabled = false;
+        this.clearReconnectTimer();
+        return true;
+      }
+    }
+    return false;
+  }
+
   async connect(): Promise<IntercomClient> {
+    if (this.registrationConflict) throw this.registrationConflict;
     this.reconnectEnabled = true;
     this.clearReconnectTimer();
     if (this.client?.isConnected()) return this.client;
@@ -259,6 +290,9 @@ export class ClaudeIntercomRuntime {
     this.connectPromise = this.connectOnce();
     try {
       return await this.connectPromise;
+    } catch (error) {
+      this.pauseOnRegistrationConflict(error);
+      throw error;
     } finally {
       this.connectPromise = null;
     }
@@ -271,26 +305,29 @@ export class ClaudeIntercomRuntime {
       this.handleIncomingMessage(from, message);
       client.acknowledgeMessage(deliveryId);
     });
+    client.on("error", (error: Error) => {
+      this.pauseOnRegistrationConflict(error);
+      process.stderr.write(`claude-intercom: ${error.message}\n`);
+    });
     client.on("disconnected", (error: Error) => {
-      for (const waiter of this.replyWaiters.values()) {
-        clearTimeout(waiter.timeout);
-        waiter.cleanup?.();
-        waiter.reject(new Error(`Disconnected while waiting for reply: ${error.message}`, { cause: error }));
-      }
-      this.replyWaiters.clear();
+      this.rejectReplyWaiters(new Error(`Disconnected while waiting for reply: ${error.message}`, { cause: error }));
       if (this.client === client) this.client = null;
       this.scheduleReconnect();
     });
+    const registeredIdentity = this.identity;
     await client.connect({
-      name: this.identity.name,
-      cwd: this.identity.cwd,
-      model: this.identity.model,
+      name: registeredIdentity.name,
+      cwd: registeredIdentity.cwd,
+      model: registeredIdentity.model,
       pid: process.pid,
-      startedAt: this.identity.startedAt,
+      startedAt: registeredIdentity.startedAt,
       lastActivity: Date.now(),
       status: "idle",
-    }, this.identity.sessionId);
+    }, registeredIdentity.sessionId);
     this.client = client;
+    if (registeredIdentity.name !== this.identity.name || registeredIdentity.model !== this.identity.model) {
+      client.updatePresence({ name: this.identity.name, model: this.identity.model });
+    }
     this.reconnectAttempt = 0;
     return client;
   }
@@ -319,8 +356,18 @@ export class ClaudeIntercomRuntime {
     this.reconnectTimer = null;
   }
 
+  private rejectReplyWaiters(error: Error): void {
+    for (const waiter of this.replyWaiters.values()) {
+      clearTimeout(waiter.timeout);
+      waiter.cleanup?.();
+      waiter.reject(error);
+    }
+    this.replyWaiters.clear();
+  }
+
   async disconnect(): Promise<void> {
     this.reconnectEnabled = false;
+    this.rejectReplyWaiters(new Error("Claude session disconnected while waiting for reply"));
     this.clearReconnectTimer();
     if (this.connectPromise) {
       try {
@@ -398,16 +445,12 @@ export class ClaudeIntercomRuntime {
       this.unresolvedAsks.set(message.id, entry);
     }
 
-    // TUI mode: mirror the message to the session inbox so the plugin monitor
-    // can inject it into the live interactive session. Never let inbox I/O
-    // break normal message handling.
-    const inboxPath = process.env.CLAUDE_INTERCOM_INBOX;
-    if (inboxPath) {
-      try {
-        appendInboxMessage(inboxPath, from, message);
-      } catch {
-        // Best-effort delivery mirror only.
-      }
+    // Ordinary plugin launches and cci share the same inbox/Monitor delivery.
+    // Keep the persistent MCP connection as the sole owner of this identity.
+    try {
+      appendInboxMessage(process.env.CLAUDE_INTERCOM_INBOX || defaultInboxPath(this.identity.sessionId), from, message);
+    } catch {
+      // Best-effort delivery mirror only; never break broker ACK handling.
     }
   }
 
@@ -462,6 +505,13 @@ export class ClaudeIntercomRuntime {
   }
 
   async status(): Promise<ToolResult> {
+    if (this.registrationConflict) {
+      return textResult(`Connected: No\nSession ID: ${this.identity.sessionId}\nRegistration conflict: ${this.registrationConflict.message}\nAutomatic reconnect paused; the incumbent session was not replaced.`, {
+        connected: false, session_id: this.identity.sessionId,
+        registration_conflict: { code: "SESSION_ID_IN_USE", message: this.registrationConflict.message },
+        reconnect_paused: true,
+      }, true);
+    }
     const client = await this.connect();
     const sessions = await client.listSessions();
     return textResult(

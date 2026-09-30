@@ -2,24 +2,55 @@ import readline from "node:readline";
 import { stdin, stdout } from "node:process";
 import { ClaudeIntercomRuntime } from "./runtime.ts";
 import { handleMcpRequest } from "./mcp-protocol.ts";
+import {
+  ClaudeSessionReader, claudeIdentityForSession, claudeSessionMetadataPath,
+  findClaudeHost, waitForClaudeSession,
+} from "./session-lifecycle.ts";
 
-const runtime = new ClaudeIntercomRuntime();
+let shuttingDown = false;
+let stopPolling = () => {};
+let pendingSync = Promise.resolve();
+const report = (error: unknown) => {
+  process.stderr.write(`claude-intercom: ${error instanceof Error ? error.message : String(error)}\n`);
+};
 
-// TUI/live mode (`cci --tui` sets CLAUDE_INTERCOM_INBOX): register on the broker
-// immediately so peers can reach this session and inbound messages flow into the
-// inbox before the first tool call. Otherwise registration is lazy (first tool).
-if (process.env.CLAUDE_INTERCOM_INBOX) {
-  void runtime.connect().catch((error) => {
-    process.stderr.write(`claude-intercom: eager connect failed: ${error instanceof Error ? error.message : String(error)}\n`);
-  });
-}
+const runtimeReady = (async () => {
+  const host = findClaudeHost();
+  const reader = host ? new ClaudeSessionReader(claudeSessionMetadataPath(host), host) : undefined;
+  const metadata = reader ? await waitForClaudeSession(reader) : undefined;
+  const runtime = new ClaudeIntercomRuntime(claudeIdentityForSession(metadata, process.env, host?.pid));
+  // Always register, including ordinary MCP launches. Hook/Monitor processes
+  // never connect to the broker, so there is still exactly one owner.
+  if (!shuttingDown && !metadata?.ended) void runtime.connect().catch(report);
+  if (reader && !shuttingDown) {
+    let previous = JSON.stringify(metadata);
+    let syncing = false;
+    const timer = setInterval(() => {
+      if (syncing || shuttingDown) return;
+      const next = reader.read();
+      const signature = JSON.stringify(next);
+      if (!next || signature === previous) return;
+      previous = signature;
+      syncing = true;
+      pendingSync = (async () => {
+        if (next.ended) await runtime.disconnect();
+        else {
+          await runtime.syncSession(claudeIdentityForSession(next, process.env, host!.pid));
+          await runtime.connect();
+        }
+      })().catch(report).finally(() => { syncing = false; });
+    }, 250);
+    timer.unref();
+    stopPolling = () => clearInterval(timer);
+  }
+  return runtime;
+})();
 
 const rl = readline.createInterface({
   input: stdin,
   crlfDelay: Infinity,
 });
 
-let shuttingDown = false;
 let pendingRequests = 0;
 
 function writeResponse(response: Record<string, unknown> | undefined): void {
@@ -29,7 +60,11 @@ function writeResponse(response: Record<string, unknown> | undefined): void {
 
 function maybeShutdown(): void {
   if (!shuttingDown || pendingRequests > 0) return;
-  void runtime.disconnect().finally(() => process.exit(0));
+  stopPolling();
+  void runtimeReady.then(async (runtime) => {
+    await pendingSync;
+    await runtime.disconnect();
+  }).finally(() => process.exit(0));
 }
 
 rl.on("line", (line) => {
@@ -39,7 +74,7 @@ rl.on("line", (line) => {
   void (async () => {
     try {
       const request = JSON.parse(trimmed);
-      writeResponse(await handleMcpRequest(request, runtime));
+      writeResponse(await handleMcpRequest(request, await runtimeReady));
     } catch (error) {
       writeResponse({
         jsonrpc: "2.0",

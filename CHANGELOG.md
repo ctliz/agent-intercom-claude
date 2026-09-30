@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.14.0 - 2026-09-30
+
+- Register ordinary MCP launches before the first prompt/tool call; packaged SessionStart/SessionEnd hooks synchronize native conversation identity without creating a competing broker connection.
+- Forward `cci --tui --name` to Claude's native title and synchronize `/rename` into broker presence in MCP and verified native modes. Preserve launcher IDs, resume targets, and the existing native compatibility gate.
+- Retain messages received during Monitor startup and follow conversation changes after `/clear`.
+- Pause automatic reconnect on `SESSION_ID_IN_USE`, expose the conflict in `intercom_status`, and cancel pending reply waiters when a session ends.
+
 ## 0.13.1 - 2026-09-06
 
 - Stable release of named teams without tmux. `intercom_join`, `/intercom-create`, and `/intercom-join` work outside TmuxDeck.
