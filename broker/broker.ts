@@ -220,7 +220,7 @@ function isMessage(value: unknown): value is Message {
     if (message.replyTo !== undefined || message.expectsReply !== undefined) return false;
   }
 
-  if (!hasExactDataKeys(message.content, ["text"], ["attachments"])) {
+  if (!hasExactDataKeys(message.content, ["text"], ["attachments", "team"])) {
     return false;
   }
 
@@ -229,7 +229,8 @@ function isMessage(value: unknown): value is Message {
     return false;
   }
 
-  if (message.control !== undefined && (content.text !== "" || content.attachments !== undefined)) {
+  if (content.team !== undefined && (typeof content.team !== "string" || !/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(content.team))) return false;
+  if (message.control !== undefined && (content.text !== "" || content.attachments !== undefined || content.team !== undefined)) {
     return false;
   }
 

@@ -114,6 +114,35 @@ test("native bridge injects broker messages and correlates Claude replies", asyn
   }
 });
 
+test("native replies require exact selectors across teams and retain the source team", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-native-teams-"));
+  const client = new FakeClient();
+  const bridge = new NativeClaudeBrokerBridge(
+    { id: "claude-worker", name: "Claude worker", cwd: root, pid: 910003 },
+    { client: client as any, prepareConnection: async () => {}, registryDir: join(root, "sessions"), socketDir: join(root, "sockets"), socketPath: join(root, "bridge.sock"), sendNative: async () => "native-delivery" },
+  );
+  try {
+    await bridge.start(join(root, "unused.sock"));
+    client.emit("message", sender, { ...ask, content: { ...ask.content, team: "alpha" } }, "delivery-alpha");
+    client.emit("message", sender, { ...ask, id: "ask-2", content: { ...ask.content, team: "beta" } }, "delivery-beta");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const reply = (body: string) => (bridge as any).handleNativeFrame(buildNativeUserFrame({ content: buildNativeEnvelope({ body }) }));
+    reply("ambiguous answer");
+    assert.equal(client.sends.length, 0);
+    const sentBeta = once(client, "sent");
+    reply("[intercom-context:ctx-ask-2] answer beta");
+    await sentBeta;
+    assert.deepEqual(client.sends[0], { to: sender.id, message: { text: "answer beta", replyTo: "ask-2", team: "beta" } });
+    const sentAlpha = once(client, "sent");
+    reply("[intercom-context:ctx-ask-1] answer alpha");
+    await sentAlpha;
+    assert.deepEqual(client.sends[1], { to: sender.id, message: { text: "answer alpha", replyTo: "ask-1", team: "alpha" } });
+  } finally {
+    await bridge.stop();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("native bridge reports injection failure to a blocking asker", async () => {
   const root = await mkdtemp(join(tmpdir(), "claude-native-bridge-failure-"));
   const client = new FakeClient();

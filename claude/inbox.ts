@@ -15,6 +15,7 @@ export interface InboxEntry {
   fromId: string;
   fromName?: string;
   messageId: string;
+  team?: string;
   replyTo?: string;
   expectsReply: boolean;
   text: string;
@@ -34,6 +35,7 @@ export function toInboxEntry(from: SessionInfo, message: Message, now: number = 
     fromId: from.id,
     ...(from.name ? { fromName: from.name } : {}),
     messageId: message.id,
+    ...(message.content.team ? { team: message.content.team } : {}),
     ...(message.replyTo ? { replyTo: message.replyTo } : {}),
     expectsReply: Boolean(message.expectsReply),
     text: message.content.text,
@@ -53,7 +55,7 @@ export function formatInboxLine(entry: InboxEntry): string {
   const who = entry.fromName ? `${entry.fromName} (${entry.fromId.slice(0, 8)})` : entry.fromId;
   const kind = entry.expectsReply ? " [asking — awaiting your reply]" : "";
   const oneLine = entry.text.replace(/\s+/g, " ").trim();
-  return `Intercom message from ${who}${kind}: ${oneLine}`;
+  return `Intercom message from ${who}${entry.team ? ` [Team: ${entry.team}]` : ""}${kind}: ${oneLine}\nReply with intercom_reply({ contextId: "ctx-${entry.messageId}", message: "..." }); inherit the original team.`;
 }
 
 /**

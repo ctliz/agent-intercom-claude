@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.15.0 - 2026-10-02
+
+- Add additive task teams shared with Pi, OpenCode, and Codex: one manager-approved call adds named peers without switching registration scope or losing previous memberships.
+- Preserve task teams on sends, asks, native relays, and automatic worker replies; receiver-local ask/context selectors prevent mixed-task replies and support ordinary inbound messages.
+- Prompt once for team approval on new delegations. Initial ungrouped contact remains possible across unrelated memberships.
+
 ## 0.14.1 - 2026-09-30
 
 - Expose the existing MCP owner's `runtimeReady` promise to companion Grok/AGY launchers so native identity and title updates use `syncSession` without opening a competing broker connection.

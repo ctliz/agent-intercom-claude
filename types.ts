@@ -64,6 +64,7 @@ export interface Message {
   control?: BossControlEnvelope;
   content: {
     text: string;
+    team?: string;
     attachments?: Attachment[];
   };
 }

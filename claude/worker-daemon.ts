@@ -72,6 +72,7 @@ function formatMessage(from: SessionInfo, message: Message, agent: WorkerAgentCo
   return [
     `Intercom message for ${agent.name}.`,
     `From: ${formatSessionDisplay(from)} (${from.id})`,
+    ...(message.content.team ? [`[Team: ${message.content.team}]`] : []),
     `Message id: ${message.id}`,
     "",
     message.content.text,
@@ -235,6 +236,7 @@ export class VirtualClaudeAgent {
         void this.client.send(from.id, {
           text: "This worker is rate limited (too many wakes this minute). Please try again shortly.",
           replyTo: message.id,
+          ...(message.content.team === undefined ? {} : { team: message.content.team }),
         }).catch((error) => {
           process.stderr.write(`worker ${this.agent.id}: rate-limit reply failed: ${error instanceof Error ? error.message : String(error)}\n`);
         });
@@ -305,6 +307,7 @@ export class VirtualClaudeAgent {
         await this.client.send(from.id, {
           text: result.result || "(the worker finished without a final message)",
           replyTo: message.id,
+          ...(message.content.team === undefined ? {} : { team: message.content.team }),
         });
         process.stderr.write(`worker ${this.agent.id}: replied to ${from.name || from.id} (session ${this.sessionId ?? "none"})\n`);
       }
@@ -316,6 +319,7 @@ export class VirtualClaudeAgent {
         await this.client.send(from.id, {
           text: `Worker error: ${text}`,
           replyTo: message.id,
+          ...(message.content.team === undefined ? {} : { team: message.content.team }),
         }).catch((sendError) => {
           process.stderr.write(`worker ${this.agent.id}: error reply failed: ${sendError instanceof Error ? sendError.message : String(sendError)}\n`);
         });

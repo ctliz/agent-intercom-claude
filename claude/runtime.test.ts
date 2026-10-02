@@ -292,7 +292,7 @@ test("duplicate identity pauses reconnect, reports the broker code, and never st
   } finally { await runtime.disconnect(); }
 });
 
-test("runtime join creates a named team and switches captured scope", async () => {
+test("runtime join creates a task team without changing captured scope", async () => {
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
   const previousScope = process.env.AGENT_INTERCOM_SCOPE_ID;
   const previousManager = process.env.AGENT_INTERCOM_MANAGER_TARGET;
@@ -315,11 +315,13 @@ test("runtime join creates a named team and switches captured scope", async () =
     assert.match(created.content[0]!.text, /Created team billing/);
     assert.doesNotMatch(created.content[0]!.text, /[0-9a-f]{48}/);
     const captured = (runtime as unknown as { capturedScopeId?: string }).capturedScopeId;
-    assert.match(captured ?? "", /^[0-9a-f]{48}$/);
-    assert.equal(process.env.AGENT_INTERCOM_MANAGER_TARGET, "claude-planner");
+    assert.equal(captured, undefined);
+    assert.equal(process.env.AGENT_INTERCOM_MANAGER_TARGET, undefined);
+    assert.equal(process.env.AGENT_INTERCOM_SCOPE_ID, undefined);
+    assert.equal((await runtime.team("billing")).structuredContent?.teams instanceof Array, true);
     const listed = await runtime.join();
     assert.match(listed.content[0]!.text, /  1\) billing/);
-    assert.doesNotMatch(listed.content[0]!.text, new RegExp(captured ?? "no-scope"));
+    assert.doesNotMatch(listed.content[0]!.text, /[0-9a-f]{48}/);
   } finally {
     await runtime.disconnect();
     if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;

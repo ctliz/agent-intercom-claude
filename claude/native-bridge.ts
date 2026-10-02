@@ -35,7 +35,7 @@ interface NativeBridgeClient {
   }, sessionId?: string): Promise<void>;
   disconnect(): Promise<void>;
   acknowledgeMessage(deliveryId: string): void;
-  send(to: string, message: { text: string; replyTo?: string }): Promise<{ delivered: boolean; reason?: string }>;
+  send(to: string, message: { text: string; replyTo?: string; team?: string }): Promise<{ delivered: boolean; reason?: string }>;
   updatePresence(update: { name?: string; status?: string }): void;
 }
 
@@ -72,6 +72,8 @@ function nativePrompt(from: SessionInfo, message: Message): string {
     : "\n\nAct if needed. To acknowledge or report a result, use Claude's built-in SendMessage tool to reply to this same native peer; a normal assistant response stays local.";
   return [
     `[Intercom message from ${formatSessionDisplay(from)} (${from.id})]`,
+    ...(message.content.team ? [`[Team: ${message.content.team}]`] : []),
+    `When replying via SendMessage, begin the body with [intercom-context:ctx-${message.id}] so this exact task is retained.`,
     message.content.text,
     formatAttachments(message.content.attachments),
     reply,
@@ -175,7 +177,7 @@ export class NativeClaudeBrokerBridge {
       const reason = error instanceof Error ? error.message : String(error);
       this.client.updatePresence({ status: `native delivery error: ${reason}` });
       if (message.expectsReply) {
-        await this.client.send(from.id, { text: `Native Claude delivery failed: ${reason}`, replyTo: message.id }).catch(() => undefined);
+        await this.client.send(from.id, { text: `Native Claude delivery failed: ${reason}`, replyTo: message.id, ...(message.content.team === undefined ? {} : { team: message.content.team }) }).catch(() => undefined);
       }
     }
   }
@@ -186,7 +188,13 @@ export class NativeClaudeBrokerBridge {
     if (typeof message !== "object" || message === null || !("content" in message)) return;
     const envelope = stripNativeEnvelope((message as { content?: unknown }).content);
     if (!envelope.body) return;
-    const relay = this.pending.shift();
+    const selector = /^\[intercom-context:ctx-([^\]\r\n]+)\]\s*/.exec(envelope.body);
+    const index = selector ? this.pending.findIndex((entry) => entry.message.id === selector[1]) : (this.pending.length === 1 ? 0 : -1);
+    if (index < 0) {
+      this.client.updatePresence({ status: "Reply requires the original intercom-context selector" });
+      return;
+    }
+    const relay = this.pending.splice(index, 1)[0];
     const fromAddress = typeof frame.from === "string" ? frame.from : envelope.from;
     if (fromAddress?.startsWith("uds:")) {
       void this.sendFrame(fromAddress.slice(4), buildNativeReceipt({
@@ -198,7 +206,8 @@ export class NativeClaudeBrokerBridge {
     }
     if (!relay) return;
     void this.client.send(relay.from.id, {
-      text: envelope.body,
+      text: selector ? envelope.body.slice(selector[0].length) : envelope.body,
+      ...(relay.message.content.team === undefined ? {} : { team: relay.message.content.team }),
       ...(relay.message.expectsReply ? { replyTo: relay.message.id } : {}),
     }).then(() => {
       this.client.updatePresence({ status: "idle" });
