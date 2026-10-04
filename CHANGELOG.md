@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.15.1 - 2026-10-04
+
+- Add shortest-path MCP instructions and align the Claude skill: send directly to known recipients; discover peers, diagnose connections, publish summaries, and poll inboxes only when needed. Keep team approval, reply threading, and natural-boundary inbound checks unchanged.
 
 ## 0.15.0 - 2026-10-02
 
