@@ -338,6 +338,7 @@ Flags (all optional; `ccim` accepts the same set):
 | `--effort <level>` | Claude effort for every woken turn (`low`, `medium`, `high`, `xhigh`, or `max`) |
 | `--instructions <text>` | System-prompt guidance appended to every woken turn |
 | `--tui` / `--live` | Run as a LIVE interactive Claude session woken in place (see below) instead of a headless `claude -p` worker |
+| `--channel` | With `--tui`, explicitly receive through MCP Channels instead of Monitor; Claude asks for local-development confirmation |
 | `--minimal` / `--bare` | Run woken turns with `--safe-mode` (see below); implied by `ccim` (ignored with `--tui`) |
 | `--safe` | Compatibility alias for the safe `manual` permission mode |
 | `--yolo` / `--dangerously-skip-permissions` | Explicitly bypass permission checks (never the default) |
@@ -362,6 +363,18 @@ when a different non-interactive posture is required. `--yolo` remains an
 explicit trusted-user opt-in outside hardened roles.
 
 ## Live TUI Mode (`cci --tui`)
+
+### Channels receive mode
+
+Run `cci --tui --channel --name reviewer --id reviewer` to receive inbox notifications through Claude Code Channels. From a built local checkout, use `node dist/cci.mjs --tui --channel --name reviewer --id reviewer`. This is an explicit interactive MCP mode; it launches one bare `claude-intercom` server with `CLAUDE_INTERCOM_CHANNEL=1` and `--dangerously-load-development-channels server:claude-intercom`. It does not load the plugin's Monitor path or enable permission relay. Existing Claude settings still apply; do not configure another Intercom MCP owner for the same identity.
+
+Claude shows its local-development confirmation at startup. Channels are a research preview and require supported Anthropic authentication and any applicable organization policy. The launcher preserves normal tool permissions; the development flag only selects this local channel. See [the official Channels reference](https://code.claude.com/docs/en/channels-reference).
+
+After MCP initialization, unread messages trigger one fixed automated notification per new burst. Claude reads the full messages with `intercom_pending({mark_read:true})` and replies with `intercom_reply`, preserving context and team. The notifier does not consume messages, put peer text into the notification, create a second identity, or replay inbox history. Messages received before MCP initialization are included. Host notification admission is not proof of model handling; unread memory lost on an MCP restart is not recovered.
+
+Local Claude 2.1.296 was checked with an untouched idle session using the CPA gateway and `gpt-6.1-sol`: a broker message triggered a channel event, the model called `intercom_pending`, and `intercom_reply` returned `CHANNEL_CPA_OK` with the original ask correlation. Only those two Intercom tools were explicitly allowed for that test; ordinary tool permissions still apply. That host can display `no MCP server configured with that name` at startup for a server provided through `--mcp-config`, despite connecting and receiving channel events; use `/mcp` and the actual inbound event to inspect the connection.
+
+Omit `--channel` to use the existing live transport selection below.
 
 Default `cci` is a headless worker: each message spawns a `claude -p` turn. With
 `--tui`, `cci` instead opens a **live interactive Claude session that you sit in

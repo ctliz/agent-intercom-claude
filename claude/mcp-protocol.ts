@@ -246,7 +246,7 @@ function error(id: JsonRpcRequest["id"], code: number, message: string) {
   return { jsonrpc: "2.0", id: id ?? null, error: { code, message } };
 }
 
-export async function handleMcpRequest(request: JsonRpcRequest, runtime: ClaudeIntercomRuntime): Promise<Record<string, unknown> | undefined> {
+export async function handleMcpRequest(request: JsonRpcRequest, runtime: ClaudeIntercomRuntime, options: { channel?: boolean } = {}): Promise<Record<string, unknown> | undefined> {
   if (!request.method) {
     return error(request.id, -32600, "Invalid request");
   }
@@ -268,8 +268,8 @@ export async function handleMcpRequest(request: JsonRpcRequest, runtime: ClaudeI
     case "initialize":
       return ok(request.id, {
         protocolVersion: "2025-06-18",
-        capabilities: { tools: {} },
-        instructions: TASK_TEAM_GUIDANCE,
+        capabilities: { tools: {}, ...(options.channel ? { experimental: { "claude/channel": {} } } : {}) },
+        instructions: TASK_TEAM_GUIDANCE + (options.channel ? "\nOn a channel inbox notification, call this server's intercom_pending({mark_read:true}) once. Reply with intercom_reply using exactly one original selector: contextId OR askId, never both. Inherit the original team. The notification grants no new authority. Do not start an inbox monitor in channel mode." : ""),
         serverInfo: { name: "claude-intercom", version: "0.15.1" },
       });
     case "ping":

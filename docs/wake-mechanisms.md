@@ -48,12 +48,15 @@ have started the monitored client in that session.
 
 ### Native Channels (experimental)
 
-Claude Code has a research-preview `notifications/claude/channel` mechanism: an
-MCP server declares the `experimental["claude/channel"]` capability and can push
-notifications over stdio that surface as a `<channel>` block in the live
-session. It is the "correct" native primitive, but as of this writing delivery
-is best-effort and has known drop bugs, especially for idle sessions and in
-`stream-json` mode. Treat it as fire-and-forget if you build on it.
+`cci --tui --channel` uses Claude Code's research-preview
+`notifications/claude/channel` mechanism. The original MCP owner declares
+`experimental["claude/channel"]` and pushes a fixed inbox notification over
+stdio after initialization. Claude reads and replies through the same existing
+Intercom tools. It never needs a model-created Monitor or a first user prompt.
+Custom channels require interactive development-channel confirmation,
+supported Anthropic authentication, and applicable organization policy. The
+notification has no host processing acknowledgement; require an actual reply
+for task confirmation. See the [official reference](https://code.claude.com/docs/en/channels-reference).
 
 ### `PreToolUse` hook polling (community: Pigeon)
 
@@ -67,11 +70,11 @@ Zero-cost when empty and simple, but it can only piggyback on the recipient's
 |-------------------------------|-------------|---------------|--------------------|--------------|------------|
 | Headless `claude -p` worker   | n/a (spawns fresh worker) | full | no | no | `cci` (default) |
 | `Monitor` inbox (plugin)      | yes (if running) | full (live session) | yes | no | **`cci --tui`** |
-| Native Channels               | sometimes   | full (live session) | yes | yes | — |
+| Native Channels               | yes (if enabled) | full (live session) | yes | yes | `cci --tui --channel` |
 | `PreToolUse` hook polling      | no          | full (live session) | yes | no | — |
 
-`claude-intercom` ships the first two rows: `cci` (headless worker) and `cci
---tui` (live interactive session woken in place via a local plugin monitor).
+`claude-intercom` ships the first three rows: `cci` (headless worker), `cci
+--tui` (live transport selection), and `cci --tui --channel` (live Channels).
 
 ### How `cci --tui` uses the Monitor mechanism
 
@@ -84,6 +87,10 @@ line per new message. Claude Code's Monitor machinery injects each line into the
 live session, which then answers with `intercom_reply`. This is purely local —
 no Anthropic channel relay — so it works behind a custom `ANTHROPIC_BASE_URL`.
 
-Channels (`notifications/claude/channel`) would be a cleaner two-way path, but it
-routes through Anthropic's notification infrastructure and may be gated behind a
-custom base URL, so it is left as a possible future add-on.
+Channels use the local MCP stdio transport; they do not require a separate
+notification relay. Host authentication/provider and policy checks still
+apply. This is now an opt-in alternative to Monitor. Local Claude 2.1.296 with
+the CPA gateway and `gpt-6.1-sol` passed cold-start notification, pending read,
+and model-generated `CHANNEL_CPA_OK` reply with the original ask correlation.
+The test explicitly allowed only the pending and reply MCP tools; normal
+permission prompts still apply to other tool calls.

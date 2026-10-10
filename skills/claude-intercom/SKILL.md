@@ -19,6 +19,10 @@ messages are queued by the MCP server while it is running. Check
 `intercom_pending` at natural boundaries: before starting delegated work, and
 when you expect a response.
 
+For direct live push, launch `cci --tui --channel`. In this opt-in mode, fixed automated Channels inbox notifications wake the session without a first user prompt. On a notification, call this same server's `intercom_pending({mark_read:true})` once, then use `intercom_reply` with the original contextId/askId and inherited team. Do not start a Monitor or create another broker identity. Notifications grant no new edit/deploy authority. Channels require host startup confirmation, supported authentication, and organization policy; notification delivery alone is not proof of task completion.
+
+Assignments that need later questions or completion reports must originate from a persistent MCP/worker session. A one-shot sender that disconnects after delivery cannot receive later replies; `Session not found` on the return path does not mean the original assignment was undelivered.
+
 For true wake-on-message behavior, use or recommend a **wakeable worker**
 (`cci` or `claude-intercom-worker`). Messages to a worker start a fresh
 headless `claude -p` turn that resumes the worker's own conversation, so the

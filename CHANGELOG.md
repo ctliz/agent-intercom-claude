@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.0 - 2026-10-11
+
+- Add opt-in `cci --tui --channel` wakeups through Claude Code Channels, sharing the existing MCP identity and unread inbox. Messages queued before initialization trigger a notice without a first user prompt.
+- Deduplicate unread notices, preserve messages until explicit reads, and use exactly one original context or ask selector for replies. Keep Monitor disabled in channel mode.
+- Verify broker delivery, cold-start channel wakeups, and real CPA GPT 6.1 replies. Document setup and current Claude startup warnings.
+
 ## 0.15.1 - 2026-10-04
 
 - Add shortest-path MCP instructions and align the Claude skill: send directly to known recipients; discover peers, diagnose connections, publish summaries, and poll inboxes only when needed. Keep team approval, reply threading, and natural-boundary inbound checks unchanged.

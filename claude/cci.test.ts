@@ -16,6 +16,14 @@ import {
   writeDefaultWorkerMcpConfig,
 } from "./cci.ts";
 
+test("channel is an explicit interactive MCP receive mode", () => {
+  const options = parseCciArgs(["--tui", "--channel"], { CLAUDE_INTERCOM_TRANSPORT: "native" });
+  assert.equal(options.channel, true);
+  assert.equal(options.transport, "mcp");
+  assert.throws(() => parseCciArgs(["--channel"], {}), /requires --tui/);
+  assert.throws(() => parseCciArgs(["--tui", "--channel", "--transport", "native"], {}), /uses MCP/);
+});
+
 test("sanitizeSegment keeps readable safe ids", () => {
   assert.equal(sanitizeSegment("Claude:Repo Main#123"), "claude:repo-main-123");
   assert.equal(sanitizeSegment(""), "claude");
@@ -117,6 +125,12 @@ test("live launcher forwards the Intercom name to Claude's native --name flag", 
     const args = JSON.parse(await readFile(record, "utf8"));
     assert.equal(args[args.indexOf("--name") + 1], "reviewer");
     assert.ok(args.includes("--plugin-dir"));
+    assert.equal(await runCci({ ...options, channel: true }), 0);
+    const channelArgs = JSON.parse(await readFile(record, "utf8"));
+    assert.ok(!channelArgs.includes("--plugin-dir"));
+    assert.equal(channelArgs[channelArgs.indexOf("--dangerously-load-development-channels") + 1], "server:claude-intercom");
+    const config = JSON.parse(channelArgs[channelArgs.indexOf("--mcp-config") + 1]);
+    assert.ok(config.mcpServers["claude-intercom"].args[0].endsWith("claude-server.mjs"));
   } finally {
     if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
     else process.env.PI_CODING_AGENT_DIR = previous;

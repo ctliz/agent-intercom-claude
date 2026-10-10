@@ -2,6 +2,7 @@ import readline from "node:readline";
 import { stdin, stdout } from "node:process";
 import { ClaudeIntercomRuntime } from "./runtime.ts";
 import { handleMcpRequest } from "./mcp-protocol.ts";
+import { createChannelPump } from "./channel.ts";
 import {
   ClaudeSessionReader, claudeIdentityForSession, claudeSessionMetadataPath,
   findClaudeHost, waitForClaudeSession,
@@ -10,6 +11,8 @@ import {
 let shuttingDown = false;
 let stopPolling = () => {};
 let pendingSync = Promise.resolve();
+const channel = process.env.CLAUDE_INTERCOM_CHANNEL === "1";
+let channelTimer: NodeJS.Timeout | undefined;
 const report = (error: unknown) => {
   process.stderr.write(`claude-intercom: ${error instanceof Error ? error.message : String(error)}\n`);
 };
@@ -62,6 +65,7 @@ function writeResponse(response: Record<string, unknown> | undefined): void {
 function maybeShutdown(): void {
   if (!shuttingDown || pendingRequests > 0) return;
   stopPolling();
+  clearInterval(channelTimer);
   void runtimeReady.then(async (runtime) => {
     await pendingSync;
     await runtime.disconnect();
@@ -75,7 +79,15 @@ rl.on("line", (line) => {
   void (async () => {
     try {
       const request = JSON.parse(trimmed);
-      writeResponse(await handleMcpRequest(request, await runtimeReady));
+      const runtime = await runtimeReady;
+      writeResponse(await handleMcpRequest(request, runtime, { channel }));
+      if (channel && request.method === "notifications/initialized" && !channelTimer && !shuttingDown) {
+        const pump = createChannelPump(runtime, writeResponse);
+        const tick = () => { void pump().catch(report); };
+        channelTimer = setInterval(tick, 500);
+        channelTimer.unref();
+        tick();
+      }
     } catch (error) {
       writeResponse({
         jsonrpc: "2.0",

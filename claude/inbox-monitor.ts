@@ -49,6 +49,8 @@ export async function runInboxMonitor(source: InboxSource, signal?: { aborted: b
 }
 
 async function main(): Promise<void> {
+  // Channels and Monitor must not both inject the same inbound message.
+  if (process.env.CLAUDE_INTERCOM_CHANNEL === "1") return;
   const explicitPath = process.env.CLAUDE_INTERCOM_INBOX || process.argv[2];
   const host = findClaudeHost();
   if (!host) {

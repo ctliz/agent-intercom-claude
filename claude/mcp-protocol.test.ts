@@ -31,6 +31,12 @@ test("initialize returns MCP capabilities", async () => {
   assert.match(instructions, /Replies inherit the original message's team/);
 });
 
+test("channel opt-in advertises push capability without permission relay", async () => {
+  const response = await handleMcpRequest({ id: 1, method: "initialize" }, fakeRuntime(), { channel: true });
+  assert.deepEqual((response?.result as any).capabilities, { tools: {}, experimental: { "claude/channel": {} } });
+  assert.match((response?.result as any).instructions, /intercom_pending\(\{mark_read:true\}\)/);
+});
+
 test("tools/list includes every intercom tool with complete annotations", async () => {
   const response = await handleMcpRequest({ id: 2, method: "tools/list" }, fakeRuntime());
   const tools = (response?.result as any).tools as Array<{ name: string; annotations: Record<string, unknown>; inputSchema: any }>;
