@@ -216,6 +216,19 @@ export interface ClaudeIntercomRuntimeOptions {
   reconnectDelays?: number[];
 }
 
+class AskWaitElapsedError extends Error {
+  readonly from: string;
+  readonly replyTo: string;
+  readonly waitMs: number;
+  constructor(from: string, replyTo: string, waitMs: number) {
+    super(`No reply from "${from}" within ${Math.round(waitMs / 1000)} seconds`);
+    this.name = "AskWaitElapsedError";
+    this.from = from;
+    this.replyTo = replyTo;
+    this.waitMs = waitMs;
+  }
+}
+
 export class ClaudeIntercomRuntime {
   private client: IntercomClient | null = null;
   private connectPromise: Promise<IntercomClient> | null = null;
@@ -474,9 +487,8 @@ export class ClaudeIntercomRuntime {
       };
       timeout = setTimeout(() => {
         this.replyWaiters.delete(replyTo);
-        void this.client?.deferAsk(replyTo);
         signal?.removeEventListener("abort", onAbort);
-        reject(new Error(`No reply from "${from}" within ${Math.round(timeoutMs / 1000)} seconds`));
+        reject(new AskWaitElapsedError(from, replyTo, timeoutMs));
       }, timeoutMs);
       signal?.addEventListener("abort", onAbort, { once: true });
       this.replyWaiters.set(replyTo, { from, replyTo, team, resolve, reject, timeout, cleanup });
@@ -597,6 +609,16 @@ export class ClaudeIntercomRuntime {
       const replyText = `${reply.content.text}${formatAttachments(reply.content.attachments)}`;
       return textResult(`Reply from ${to}:\n${replyText}`, { ok: true, message_id: result.id, reply });
     } catch (error) {
+      if (error instanceof AskWaitElapsedError) {
+        const deferred = await client.deferAsk(error.replyTo);
+        const seconds = Math.round(error.waitMs / 1000);
+        return textResult(
+          deferred
+            ? `No reply from "${to}" within ${seconds}s. The ask remains open asynchronously; continue only independent work and handle the late reply when it arrives.`
+            : `No reply from "${to}" within ${seconds}s; ask is no longer open.`,
+          { ok: true, pending: deferred, deferred, message_id: questionId, to, ...(team ? { team } : {}) },
+        );
+      }
       void client.cancelAsk(questionId);
       return textResult(error instanceof Error ? error.message : String(error), { ok: false }, true);
     }

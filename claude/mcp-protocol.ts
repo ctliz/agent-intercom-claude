@@ -102,7 +102,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
       name: "intercom_team",
       description: "Show all your named task teams, or inspect one by name. Falls back to managed-team discovery.",
       inputSchema: { type: "object", properties: { team: { type: "string" } }, additionalProperties: false },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       handler: async (args) => runtime.team(optionalString(args.team, "team")),
     },
     {
@@ -118,7 +118,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         },
         additionalProperties: false,
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       handler: async (args) => runtime.join(
         optionalString(args.name, "name"),
         args.create === true,
@@ -130,7 +130,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
       name: "intercom_status",
       description: "Show intercom connection status, active sessions, unread messages, and pending asks.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       handler: async () => runtime.status(),
     },
     {
@@ -144,7 +144,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         },
         additionalProperties: false,
       },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       handler: async (args) => runtime.list(
         args.scope === "directory" || args.scope === "repo" ? args.scope : "machine",
         asBoolean(args.include_self, false),
@@ -159,7 +159,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         required: ["summary"],
         additionalProperties: false,
       },
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       handler: async (args) => runtime.setSummary(asString(args.summary, "summary")),
     },
     {
@@ -176,7 +176,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         required: ["to", "message"],
         additionalProperties: false,
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       handler: async (args) => runtime.send(asString(args.to, "to"), asString(args.message, "message"), asAttachmentArray(args.attachments), undefined, optionalString(args.team, "team")),
     },
     {
@@ -189,12 +189,12 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
           message: { type: "string" },
           attachments: attachmentsSchema,
           team: { type: "string", description: "Task team; required when multiple teams are shared." },
-          timeout_ms: { type: "integer", minimum: 1, maximum: 120000, description: "Maximum time to wait for a reply before returning an error. Use intercom_send plus intercom_pending for longer work." },
+          timeout_ms: { type: "integer", minimum: 1, maximum: 120000, description: "Soft wait in milliseconds before continuing asynchronously (default 30000, max 120000); timed-out asks remain open for late replies." },
         },
         required: ["to", "message"],
         additionalProperties: false,
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       handler: async (args, signal) => runtime.ask(
         asString(args.to, "to"),
         asString(args.message, "message"),
@@ -212,7 +212,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         properties: { mark_read: { type: "boolean", default: false } },
         additionalProperties: false,
       },
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       handler: async (args) => runtime.pending(asBoolean(args.mark_read, false)),
     },
     {
@@ -231,7 +231,7 @@ export function buildToolDefinitions(runtime: ClaudeIntercomRuntime): ToolDefini
         required: ["message"],
         additionalProperties: false,
       },
-      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       handler: async (args) => runtime.reply(asString(args.message, "message"), typeof args.to === "string" ? args.to : undefined, args.which === "oldest" || args.which === "latest" ? args.which : undefined, optionalString(args.askId, "askId"), optionalString(args.contextId, "contextId"), optionalString(args.team, "team")),
     },
   ];

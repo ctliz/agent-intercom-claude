@@ -55,15 +55,15 @@ test("tools/list includes every intercom tool with complete annotations", async 
   ]);
   const expectedAnnotations: Record<string, Record<string, boolean>> = {
     intercom_whoami: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    intercom_team: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    intercom_join: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-    intercom_status: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    intercom_list: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    intercom_set_summary: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
-    intercom_send: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-    intercom_ask: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-    intercom_pending: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
-    intercom_reply: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+    intercom_team: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    intercom_join: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    intercom_status: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    intercom_list: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    intercom_set_summary: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    intercom_send: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    intercom_ask: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    intercom_pending: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    intercom_reply: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   };
   for (const tool of tools) assert.deepEqual(tool.annotations, expectedAnnotations[tool.name]);
   assert.equal(tools.some((tool) => tool.name === "boss_reviewer"), false);
@@ -134,7 +134,7 @@ test("tools/call rejects ask timeouts above the interactive maximum", async () =
   }, fakeRuntime());
 
   assert.equal((response?.result as any).isError, true);
-  assert.match(((response?.result as any).content[0]).text, /intercom_send plus intercom_pending/);
+  assert.match(((response?.result as any).content[0]).text, /timeout_ms|intercom_send plus intercom_pending/);
 });
 
 test("notifications/cancelled aborts a matching pending ask", async () => {

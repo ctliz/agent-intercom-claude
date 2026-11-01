@@ -41,7 +41,7 @@ AGENT_INTERCOM_SCOPE_ID=<shared-team-or-workspace-scope>
 
 The plugin manifests intentionally do not contain static session IDs, because sharing one ID across concurrent panes would create identity collisions. `CLAUDE_INTERCOM_SESSION_ID` and `CLAUDE_INTERCOM_NAME` remain higher-priority compatibility aliases.
 
-Grok Build and AGY currently provide polling-only MCP integrations. Messages are durably retained, but there is no host-specific wake bridge to inject a new turn. Each active agent should call `intercom_pending` at startup and at natural work boundaries. They can join an existing team and exchange messages with every other adapter, but Agent Intercom Orchestrator does not currently spawn or lifecycle-manage Grok or AGY workers.
+Grok Build supports native `monitor` and leader `_x.ai/interject` wakeups through `@ctliz/agent-intercom-grok`; AGY currently provides a polling-only MCP integration. Both join teams and exchange messages with every other adapter, while Agent Intercom Orchestrator does not currently spawn or lifecycle-manage Grok or AGY workers.
 
 ## Maintenance & Upstream Provenance
 
@@ -92,13 +92,12 @@ have it act with real system access.
 
 ## Status
 
-Preview. This is the Claude-side adapter, built alongside `pi-intercom` and
-`codex-intercom`.
+Tested with Claude Code 2.1.316.
 
-A plain Claude Code MCP session does not receive unsolicited visible turns.
-Incoming messages are queued while the MCP server is running; call
-`intercom_pending` to read them. Wake-on-message workflows use `cci` /
-`claude-intercom-worker`.
+- **Plugin mode (`claude` directly — Pi-consistent interactive workflow)**: Installing the packaged Claude Code plugin gives ordinary `claude` sessions automatic eager broker registration (`SessionStart`/`SessionEnd` hooks), native `/rename` presence synchronization, automatic inbound wakeups (`monitors/monitors.json`), and `/claude-intercom:intercom*` slash commands without a wrapper CLI.
+- **Channel mode (`cci --tui --channel`)**: Uses Claude Code Channels (`notifications/claude/channel`) for cold-start wakeups before the first user prompt.
+- **Headless worker mode (`cci` / `claude-intercom-worker`)**: Runs resumable headless `claude -p --resume` turns for background worker daemons and `agent-intercom-orchestrator`.
+- **Bare MCP-only mode (`claude mcp add`)**: Without the plugin's hooks and monitor, incoming messages remain queued until read with `intercom_pending`.
 
 ## How Claude gets woken
 

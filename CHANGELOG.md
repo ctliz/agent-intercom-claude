@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.1 - 2026-11-01
+
+- Align `intercom_ask` soft-wait timeouts with Pi: defer timed-out asks on the broker (`ok: true`, `pending: true`, `deferred: true`) instead of cancelling them, so late `intercom_reply` answers still succeed; retain `cancelAsk` for explicit aborts.
+- Align MCP tool `annotations` with Pi (`openWorldHint: false` for all local IPC tools and `destructiveHint: false` for `intercom_set_summary`, `intercom_pending`, and `intercom_reply`) so Claude Code auto-mode and companion Grok permission gates do not prompt unnecessarily.
+- Document plugin-first `claude` interactive usage on Claude Code 2.1.316 alongside Channels and headless worker modes.
+
 ## 0.16.0 - 2026-10-11
 
 - Add opt-in `cci --tui --channel` wakeups through Claude Code Channels, sharing the existing MCP identity and unread inbox. Messages queued before initialization trigger a notice without a first user prompt.

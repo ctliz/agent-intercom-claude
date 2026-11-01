@@ -21,6 +21,8 @@ class FakeIntercomClient extends EventEmitter {
   connected = false;
   connectCount = 0;
   acknowledgements: string[] = [];
+  deferredAsks: string[] = [];
+  cancelledAsks: string[] = [];
   sessionId: string | null = null;
   presences: Array<{ name?: string; model?: string }> = [];
   registrations: Array<{ name?: string }> = [];
@@ -40,7 +42,8 @@ class FakeIntercomClient extends EventEmitter {
   acknowledgeMessage(deliveryId: string): void { this.acknowledgements.push(deliveryId); }
   async listSessions(): Promise<SessionInfo[]> { return [session({ id: "peer", name: "peer" })]; }
   async send(): Promise<{ delivered: boolean; id: string }> { return { delivered: true, id: "ask-1" }; }
-  async cancelAsk(): Promise<void> {}
+  async deferAsk(id: string): Promise<boolean> { this.deferredAsks.push(id); return true; }
+  async cancelAsk(id: string): Promise<void> { this.cancelledAsks.push(id); }
   drop(): void {
     this.connected = false;
     this.sessionId = null;
@@ -331,6 +334,32 @@ test("runtime join creates a task team without changing captured scope", async (
     if (previousManager === undefined) delete process.env.AGENT_INTERCOM_MANAGER_TARGET;
     else process.env.AGENT_INTERCOM_MANAGER_TARGET = previousManager;
     rmSync(agentDir, { recursive: true, force: true });
+  }
+});
+
+test("ask soft-wait timeout defers without cancelling while abort cancels", async () => {
+  const client = new FakeIntercomClient();
+  const runtime = new ClaudeIntercomRuntime({
+    sessionId: "claude-ask-defer", name: "asker", cwd: "/tmp", model: "test", startedAt: 1,
+  }, { prepareConnection: async () => {}, clientFactory: () => client as unknown as IntercomClient });
+  try {
+    const timedOut = await runtime.ask("peer", "slow question", undefined, 20);
+    assert.equal(Boolean(timedOut.isError), false);
+    assert.equal(timedOut.structuredContent?.ok, true);
+    assert.equal(timedOut.structuredContent?.pending, true);
+    assert.equal(timedOut.structuredContent?.deferred, true);
+    assert.equal(client.deferredAsks.length, 1);
+    assert.equal(client.cancelledAsks.length, 0);
+
+    const controller = new AbortController();
+    const abortedPromise = runtime.ask("peer", "cancelled question", undefined, 5000, controller.signal);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    controller.abort();
+    const aborted = await abortedPromise;
+    assert.equal(aborted.isError, true);
+    assert.equal(client.cancelledAsks.length >= 1, true);
+  } finally {
+    await runtime.disconnect();
   }
 });
 
