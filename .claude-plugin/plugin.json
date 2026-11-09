@@ -1,6 +1,6 @@
 {
   "name": "agent-intercom",
-  "version": "0.16.1",
+  "version": "0.17.0",
   "description": "Claude Code MCP plugin and wakeable worker for local Pi/Codex/Claude intercom messaging.",
   "author": {
     "name": "ctliz",

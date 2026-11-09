@@ -92,7 +92,7 @@ have it act with real system access.
 
 ## Status
 
-Tested with Claude Code 2.1.316.
+Tested with Claude Code 2.1.319. Plugin mode declares its Monitor under `experimental.monitors`, which requires a Claude Code release that supports that manifest key (verified on 2.1.319).
 
 - **Plugin mode (`claude` directly — Pi-consistent interactive workflow)**: Installing the packaged Claude Code plugin gives ordinary `claude` sessions automatic eager broker registration (`SessionStart`/`SessionEnd` hooks), native `/rename` presence synchronization, automatic inbound wakeups (`monitors/monitors.json`), and `/agent-intercom:intercom*` slash commands without a wrapper CLI.
 - **Channel mode (`cci --tui --channel`)**: Uses Claude Code Channels (`notifications/claude/channel`) for cold-start wakeups before the first user prompt.

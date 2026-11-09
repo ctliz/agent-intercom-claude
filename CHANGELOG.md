@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.17.0 - 2026-11-10
 
 - Make plugin-mode Monitor delivery match Pi: defer inbound messages while Claude's native session registry reports `status: "busy"` and deliver at the next idle boundary (bounded by `CLAUDE_INTERCOM_MONITOR_MAX_HOLD_MS`, default 10 minutes), and combine bursts within a 300 ms quiet window / 1 s maximum latency into one Monitor event.
 - Preserve multi-line message bodies (indented against header forgery, bounded at 8000 characters) and include formatted attachments in Monitor delivery.
