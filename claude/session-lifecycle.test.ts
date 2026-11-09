@@ -55,6 +55,19 @@ test("launcher IDs retain precedence and are not replaced by native conversation
   assert.throws(() => claudeIdentityForSession(metadata, { AGENT_INTERCOM_SESSION_ID: "invalid id" }));
 });
 
+test("without hook metadata, MCP and Monitor derive one native identity regardless of cwd", () => {
+  const native = { CLAUDE_CODE_SESSION_ID: "ec1c5705-native", CLAUDE_PROJECT_DIR: "/work/project" };
+  const mcp = claudeIdentityForSession(undefined, { ...native, PWD: "/work/project" }, 42, true);
+  const monitor = claudeIdentityForSession(undefined, { ...native, PWD: "/work/project/subdir" }, 42, true);
+  assert.equal(mcp.sessionId, "claude-ec1c5705-native");
+  assert.equal(monitor.sessionId, mcp.sessionId);
+  assert.equal(monitor.cwd, "/work/project");
+  // Launcher IDs keep precedence; an inherited ID is ignored outside a verified Claude host.
+  assert.equal(claudeIdentityForSession(undefined, { ...native, CLAUDE_INTERCOM_SESSION_ID: "worker-a" }, 42, true).sessionId, "worker-a");
+  assert.match(claudeIdentityForSession(undefined, { ...native, PWD: "/elsewhere" }, 42).sessionId, /^claude-42-/);
+  assert.match(claudeIdentityForSession(undefined, { CLAUDE_CODE_SESSION_ID: "../bad", PWD: "/w" }, 42, true).sessionId, /^claude-42-/);
+});
+
 test("metadata rejects malformed records and stale PID reuse", (t) => {
   const f = fixture(t); f.start();
   assert.equal(readClaudeSessionMetadata(f.path, { ...f.host, startedAt: "different process" }), undefined);

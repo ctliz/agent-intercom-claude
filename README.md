@@ -68,7 +68,7 @@ This repository contains the Claude Code adapter. It uses the shared strict `pi-
 
 Attached Claude sessions support two local delivery transports. `native` bridges the broker to Claude Code's cross-session Unix socket protocol; `mcp` preserves the plugin/inbox/Monitor path. The default `auto` mode selects native only for Claude Code versions in the verified compatibility window (currently 2.1.220–2.1.226) and otherwise selects MCP. Explicit native selection fails closed outside that window.
 
-When running `cci` or `ccim` in an attached terminal, press **Alt+M** to choose a connected session and send it a message, or **Alt+I** to copy that worker's intercom contact target. The MCP plugin cannot register native Claude Code keyboard shortcuts because Claude Code does not expose plugin keybinding registration; the plugin instead provides `/claude-intercom:intercom` and `/claude-intercom:intercom-id`. Detached worker-daemon mode has no terminal shortcuts.
+When running `cci` or `ccim` in an attached terminal, press **Alt+M** to choose a connected session and send it a message, or **Alt+I** to copy that worker's intercom contact target. The MCP plugin cannot register native Claude Code keyboard shortcuts because Claude Code does not expose plugin keybinding registration; the plugin instead provides `/agent-intercom:intercom` and `/agent-intercom:intercom-id`. Detached worker-daemon mode has no terminal shortcuts.
 
 Claude Intercom adds local messaging between Claude Code, Codex, Pi, OpenCode,
 and other coding-agent sessions on the same machine. It speaks the same local broker
@@ -94,7 +94,7 @@ have it act with real system access.
 
 Tested with Claude Code 2.1.316.
 
-- **Plugin mode (`claude` directly — Pi-consistent interactive workflow)**: Installing the packaged Claude Code plugin gives ordinary `claude` sessions automatic eager broker registration (`SessionStart`/`SessionEnd` hooks), native `/rename` presence synchronization, automatic inbound wakeups (`monitors/monitors.json`), and `/claude-intercom:intercom*` slash commands without a wrapper CLI.
+- **Plugin mode (`claude` directly — Pi-consistent interactive workflow)**: Installing the packaged Claude Code plugin gives ordinary `claude` sessions automatic eager broker registration (`SessionStart`/`SessionEnd` hooks), native `/rename` presence synchronization, automatic inbound wakeups (`monitors/monitors.json`), and `/agent-intercom:intercom*` slash commands without a wrapper CLI.
 - **Channel mode (`cci --tui --channel`)**: Uses Claude Code Channels (`notifications/claude/channel`) for cold-start wakeups before the first user prompt.
 - **Headless worker mode (`cci` / `claude-intercom-worker`)**: Runs resumable headless `claude -p --resume` turns for background worker daemons and `agent-intercom-orchestrator`.
 - **Bare MCP-only mode (`claude mcp add`)**: Without the plugin's hooks and monitor, incoming messages remain queued until read with `intercom_pending`.
@@ -238,9 +238,9 @@ The plugin packages the MCP server and the bundled `claude-intercom` skill (whic
 gives Claude copy-paste coordination patterns). It also installs these Claude
 Code slash commands:
 
-- `/claude-intercom:intercom [target and message]` — list sessions and send a
+- `/agent-intercom:intercom [target and message]` — list sessions and send a
   message. Without arguments, Claude asks which peer to contact and what to send.
-- `/claude-intercom:intercom-id` — print this session's stable, copyable
+- `/agent-intercom:intercom-id` — print this session's stable, copyable
   intercom target.
 
 Claude custom commands are model-driven prompt commands, not native modal UI.
@@ -253,6 +253,28 @@ Alt+M picker. Load the plugin for a single session with `--plugin-dir`:
 ```bash
 claude --plugin-dir /path/to/agent-intercom-claude      # this session only
 ```
+
+To install the plugin persistently for every `claude` session from a built
+checkout (`npm ci && npm run build`), add the checkout as a local marketplace:
+
+```bash
+claude plugin marketplace add /path/to/agent-intercom-claude
+claude plugin install agent-intercom@ctliz-intercom
+```
+
+For Pi-like silent replies, allow the plugin's local IPC tools once in
+`~/.claude/settings.json` (otherwise default permission mode prompts on the
+first `intercom_reply`):
+
+```json
+{ "permissions": { "allow": ["mcp__plugin_agent-intercom_claude-intercom"] } }
+```
+
+In plugin mode the Monitor delivers like Pi: a burst within 300 ms (max 1 s)
+becomes one event, and while Claude's native session registry reports the
+session as `busy`, delivery waits for the next idle boundary instead of
+interrupting the running turn (`CLAUDE_INTERCOM_MONITOR_MAX_HOLD_MS`, default
+10 minutes, bounds the wait).
 
 For the minimal tool surface, prefer plain MCP registration
 (`claude mcp add claude-intercom -- claude-intercom-mcp`) so you get the intercom

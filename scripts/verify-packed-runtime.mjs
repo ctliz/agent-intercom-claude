@@ -87,7 +87,7 @@ try {
   const pluginEntry = entries.get("package/.claude-plugin/plugin.json");
   if (!pluginEntry) throw new Error("Packed adapter is missing .claude-plugin/plugin.json");
   const plugin = JSON.parse(pluginEntry.toString("utf8"));
-  if (plugin.name !== "claude-intercom") throw new Error(`Unexpected plugin name: ${plugin.name}`);
+  if (plugin.name !== "agent-intercom") throw new Error(`Unexpected plugin name: ${plugin.name}`);
 
   // 2. Assert Plugin -> MCP configuration exists and points to real dist bundle
   if (typeof plugin.mcpServers !== "string") throw new Error("plugin.json missing mcpServers declaration");
@@ -101,8 +101,9 @@ try {
   }
 
   // 3. Assert Plugin -> Monitors configuration exists and points to real dist bundle
-  if (typeof plugin.monitors !== "string") throw new Error("plugin.json missing monitors declaration");
-  const monitorsRelPath = plugin.monitors.replace(/^\.\//, "");
+  const monitorsDecl = plugin.experimental?.monitors;
+  if (typeof monitorsDecl !== "string") throw new Error("plugin.json missing experimental.monitors declaration");
+  const monitorsRelPath = monitorsDecl.replace(/^\.\//, "");
   const monitorsEntry = entries.get(`package/${monitorsRelPath}`);
   if (!monitorsEntry) throw new Error(`Packed adapter missing plugin monitors file: ${monitorsRelPath}`);
   const monitorsConfig = JSON.parse(monitorsEntry.toString("utf8"));

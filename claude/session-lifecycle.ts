@@ -83,11 +83,26 @@ export function publishClaudeSessionMetadata(input: Record<string, unknown>, hos
   renameSync(temp, path);
 }
 
+// `nativeHost` is true only when the caller is a direct child of a verified
+// Claude process, so an inherited CLAUDE_CODE_SESSION_ID from an outer Claude
+// can never be claimed by an unrelated host (Grok/AGY launched from Bash).
 export function claudeIdentityForSession(metadata: ClaudeSessionMetadata | undefined,
-  env: NodeJS.ProcessEnv = process.env, pid = process.pid): ClaudeRuntimeIdentity {
-  const identity = buildClaudeRuntimeIdentity(env, metadata?.cwd ?? env.PWD ?? process.cwd(), pid);
-  if (!metadata) return identity;
-  if (!env.CLAUDE_INTERCOM_SESSION_ID?.trim() && !env.CLAUDE_PEER_ID?.trim() && !env.AGENT_INTERCOM_SESSION_ID?.trim()) {
+  env: NodeJS.ProcessEnv = process.env, pid = process.pid, nativeHost = false): ClaudeRuntimeIdentity {
+  const launcherId = Boolean(env.CLAUDE_INTERCOM_SESSION_ID?.trim() || env.CLAUDE_PEER_ID?.trim()
+    || env.AGENT_INTERCOM_SESSION_ID?.trim());
+  if (!metadata) {
+    // No SessionStart metadata: the plugin was loaded mid-session
+    // (/reload-plugins) or the hook was skipped. Claude passes the native
+    // conversation ID and project dir to every MCP/Monitor child, so both
+    // processes still agree on one identity regardless of their own cwd.
+    const nativeId = nativeHost ? env.CLAUDE_CODE_SESSION_ID?.trim() : undefined;
+    const projectDir = nativeHost ? env.CLAUDE_PROJECT_DIR?.trim() : undefined;
+    const identity = buildClaudeRuntimeIdentity(env, projectDir || env.PWD || process.cwd(), pid);
+    if (!launcherId && nativeId && /^[A-Za-z0-9_-]{1,128}$/.test(nativeId)) identity.sessionId = `claude-${nativeId}`;
+    return identity;
+  }
+  const identity = buildClaudeRuntimeIdentity(env, metadata.cwd, pid);
+  if (!launcherId) {
     identity.sessionId = `claude-${metadata.sessionId}`;
   }
   identity.name = metadata.name?.trim() || identity.name;

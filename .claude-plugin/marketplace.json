@@ -1,0 +1,15 @@
+{
+  "name": "ctliz-intercom",
+  "owner": {
+    "name": "ctliz",
+    "email": "support@datafor.xyz"
+  },
+  "description": "Local multi-agent intercom for Claude Code, Pi, Codex, and OpenCode sessions.",
+  "plugins": [
+    {
+      "name": "agent-intercom",
+      "source": "./",
+      "description": "Local Pi/Codex/Claude intercom messaging with automatic registration and Monitor wakeups."
+    }
+  ]
+}

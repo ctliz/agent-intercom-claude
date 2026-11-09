@@ -29,7 +29,9 @@ export function defaultInboxPath(sessionId: string, intercomDir: string = getInt
   return join(intercomDir, `inbox-${sanitizeInboxSegment(sessionId)}.jsonl`);
 }
 
-export function toInboxEntry(from: SessionInfo, message: Message, now: number = Date.now()): InboxEntry {
+// `attachmentText` is the pre-formatted attachment block, so Monitor delivery
+// carries the same agent-visible body as Pi's inline message.
+export function toInboxEntry(from: SessionInfo, message: Message, now: number = Date.now(), attachmentText = ""): InboxEntry {
   return {
     ts: now,
     fromId: from.id,
@@ -38,24 +40,50 @@ export function toInboxEntry(from: SessionInfo, message: Message, now: number = 
     ...(message.content.team ? { team: message.content.team } : {}),
     ...(message.replyTo ? { replyTo: message.replyTo } : {}),
     expectsReply: Boolean(message.expectsReply),
-    text: message.content.text,
+    text: `${message.content.text}${attachmentText}`,
   };
 }
 
-export function appendInboxMessage(path: string, from: SessionInfo, message: Message): void {
+export function appendInboxMessage(path: string, from: SessionInfo, message: Message, attachmentText = ""): void {
   mkdirSync(dirname(path), { recursive: true });
-  appendFileSync(path, `${JSON.stringify(toInboxEntry(from, message))}\n`, {
+  appendFileSync(path, `${JSON.stringify(toInboxEntry(from, message, Date.now(), attachmentText))}\n`, {
     encoding: "utf-8",
     mode: INTERCOM_RUNTIME_FILE_MODE,
   });
 }
 
-/** Human/Claude-facing single line the monitor emits for a new inbound message. */
+// Bound one Monitor event; the full text stays available via intercom_pending.
+export const MAX_INBOX_BODY_CHARS = 8000;
+
+/**
+ * Human/Claude-facing block the monitor emits for a new inbound message.
+ * Single-line bodies stay on the header line. Multi-line bodies keep their
+ * line structure (code, lists) and are indented so peer text cannot forge
+ * another "Intercom message from" header.
+ */
 export function formatInboxLine(entry: InboxEntry): string {
   const who = entry.fromName ? `${entry.fromName} (${entry.fromId.slice(0, 8)})` : entry.fromId;
   const kind = entry.expectsReply ? " [asking — awaiting your reply]" : "";
-  const oneLine = entry.text.replace(/\s+/g, " ").trim();
-  return `Intercom message from ${who}${entry.team ? ` [Team: ${entry.team}]` : ""}${kind}: ${oneLine}\nReply with intercom_reply({ contextId: "ctx-${entry.messageId}", message: "..." }); inherit the original team.`;
+  const header = `Intercom message from ${who}${entry.team ? ` [Team: ${entry.team}]` : ""}${kind}`;
+  let body = entry.text.replace(/\r\n?/g, "\n").replace(/^\s*\n|\s+$/g, "");
+  let truncated = false;
+  if (body.length > MAX_INBOX_BODY_CHARS) {
+    body = body.slice(0, MAX_INBOX_BODY_CHARS);
+    truncated = true;
+  }
+  const lines = body.split("\n");
+  const formatted = lines.length === 1 && !truncated
+    ? `${header}: ${lines[0]!.trim()}`
+    : `${header}:\n${lines.map((line) => `  ${line}`).join("\n")}${truncated ? "\n  … (truncated; call intercom_pending for the full text)" : ""}`;
+  return `${formatted}\nReply with intercom_reply({ contextId: "ctx-${entry.messageId}", message: "..." }); inherit the original team.`;
+}
+
+/** One Monitor event for a burst of inbound messages (Pi-style batch). */
+export function formatInboxBatch(entries: InboxEntry[]): string {
+  if (entries.length === 1) return formatInboxLine(entries[0]!);
+  return `Intercom batch (${entries.length} messages)\n\n${entries
+    .map((entry, index) => `[${index + 1}/${entries.length}] ${formatInboxLine(entry)}`)
+    .join("\n\n")}`;
 }
 
 /**

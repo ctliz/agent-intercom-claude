@@ -22,7 +22,7 @@ export const runtimeReady = (async () => {
   const host = findClaudeHost();
   const reader = host ? new ClaudeSessionReader(claudeSessionMetadataPath(host), host) : undefined;
   const metadata = reader ? await waitForClaudeSession(reader) : undefined;
-  const runtime = new ClaudeIntercomRuntime(claudeIdentityForSession(metadata, process.env, host?.pid));
+  const runtime = new ClaudeIntercomRuntime(claudeIdentityForSession(metadata, process.env, host?.pid, Boolean(host)));
   // Always register, including ordinary MCP launches. Hook/Monitor processes
   // never connect to the broker, so there is still exactly one owner.
   if (!shuttingDown && !metadata?.ended) void runtime.connect().catch(report);
@@ -39,7 +39,7 @@ export const runtimeReady = (async () => {
       pendingSync = (async () => {
         if (next.ended) await runtime.disconnect();
         else {
-          await runtime.syncSession(claudeIdentityForSession(next, process.env, host!.pid));
+          await runtime.syncSession(claudeIdentityForSession(next, process.env, host!.pid, true));
           await runtime.connect();
         }
       })().catch(report).finally(() => { syncing = false; });

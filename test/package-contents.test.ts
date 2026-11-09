@@ -71,17 +71,23 @@ test("package manifest and plugin definition maintain consistent MCP, monitors, 
     name: string;
     skills: string;
     commands: string;
-    monitors: string;
+    experimental: { monitors: string };
     mcpServers: string;
   };
+  // Monitors are an experimental plugin component; a top-level key is deprecated.
+  assert.equal((plugin as Record<string, unknown>).monitors, undefined);
+  const monitorsPath = plugin.experimental.monitors;
 
-  assert.equal(plugin.name, "claude-intercom");
-  assert.ok(existsSync(new URL(plugin.monitors, repositoryRoot)));
+  // Third-party plugin names may not start with "claude-".
+  assert.equal(plugin.name, "agent-intercom");
+  const marketplace = JSON.parse(readFileSync(new URL(".claude-plugin/marketplace.json", repositoryRoot), "utf8")) as { plugins: Array<{ name: string; source: string }> };
+  assert.deepEqual(marketplace.plugins.map((p) => [p.name, p.source]), [["agent-intercom", "./"]]);
+  assert.ok(existsSync(new URL(monitorsPath, repositoryRoot)));
   assert.ok(existsSync(new URL(plugin.mcpServers, repositoryRoot)));
   assert.ok(existsSync(new URL(plugin.skills, repositoryRoot)));
   assert.ok(existsSync(new URL(plugin.commands, repositoryRoot)));
 
-  const monitors = JSON.parse(readFileSync(new URL(plugin.monitors, repositoryRoot), "utf8")) as Array<{
+  const monitors = JSON.parse(readFileSync(new URL(monitorsPath, repositoryRoot), "utf8")) as Array<{
     name: string;
     command: string;
   }>;

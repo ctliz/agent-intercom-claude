@@ -462,7 +462,8 @@ export class ClaudeIntercomRuntime {
     // Ordinary plugin launches and cci share the same inbox/Monitor delivery.
     // Keep the persistent MCP connection as the sole owner of this identity.
     try {
-      appendInboxMessage(process.env.CLAUDE_INTERCOM_INBOX || defaultInboxPath(this.identity.sessionId), from, message);
+      appendInboxMessage(process.env.CLAUDE_INTERCOM_INBOX || defaultInboxPath(this.identity.sessionId), from, message,
+        formatAttachments(message.content.attachments));
     } catch {
       // Best-effort delivery mirror only; never break broker ACK handling.
     }

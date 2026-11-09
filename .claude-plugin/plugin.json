@@ -1,5 +1,5 @@
 {
-  "name": "claude-intercom",
+  "name": "agent-intercom",
   "version": "0.16.1",
   "description": "Claude Code MCP plugin and wakeable worker for local Pi/Codex/Claude intercom messaging.",
   "author": {
@@ -21,6 +21,8 @@
   ],
   "skills": "./skills/",
   "commands": "./commands/",
-  "monitors": "./monitors/monitors.json",
+  "experimental": {
+    "monitors": "./monitors/monitors.json"
+  },
   "mcpServers": "./.mcp.json"
 }

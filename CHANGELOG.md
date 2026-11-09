@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Make plugin-mode Monitor delivery match Pi: defer inbound messages while Claude's native session registry reports `status: "busy"` and deliver at the next idle boundary (bounded by `CLAUDE_INTERCOM_MONITOR_MAX_HOLD_MS`, default 10 minutes), and combine bursts within a 300 ms quiet window / 1 s maximum latency into one Monitor event.
+- Preserve multi-line message bodies (indented against header forgery, bounded at 8000 characters) and include formatted attachments in Monitor delivery.
+- Rename the Claude Code plugin to `agent-intercom` (reserved `claude-` prefix): slash commands become `/agent-intercom:intercom*` and plugin tools `mcp__plugin_agent-intercom_claude-intercom__*`. The MCP server name `claude-intercom` and `cci` launches are unchanged. Declare the Monitor under `experimental.monitors`.
+- Without SessionStart metadata (plugin loaded mid-session via `/reload-plugins`), derive the identity from Claude's `CLAUDE_CODE_SESSION_ID`/`CLAUDE_PROJECT_DIR` so the MCP server and Monitor agree on `claude-<native-session-id>` instead of diverging on their own working directories.
+- Add a local `.claude-plugin/marketplace.json` so a checkout can be installed persistently with `claude plugin marketplace add <checkout>` and `claude plugin install agent-intercom@ctliz-intercom`.
+
 ## 0.16.1 - 2026-11-01
 
 - Align `intercom_ask` soft-wait timeouts with Pi: defer timed-out asks on the broker (`ok: true`, `pending: true`, `deferred: true`) instead of cancelling them, so late `intercom_reply` answers still succeed; retain `cancelAsk` for explicit aborts.
